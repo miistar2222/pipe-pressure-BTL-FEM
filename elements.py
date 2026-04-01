@@ -1,9 +1,7 @@
 import numpy as np
 
 def get_d_matrix(E, nu):
-    """
-    Trả về ma trận đàn hồi D cho bài toán Biến dạng phẳng (Plane Strain)
-    """
+    #Trả về ma trận đàn hồi D cho bài toán Biến dạng phẳng (Plane Strain)
     factor = E / ((1 + nu) * (1 - 2 * nu))
     D = factor * np.array([
         [1 - nu,     nu,          0],

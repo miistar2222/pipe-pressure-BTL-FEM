@@ -9,7 +9,7 @@ from post_processing import calculate_stresses
 Ri, Ro = 10, 20      # mm
 Pi, Po = 100, 0      # MPa
 E, nu = 2e5, 0.3     # MPa
-levels = [4, 8, 16, 32] # Các mức lưới khảo sát nr
+levels = [43] # Các mức lưới khảo sát nr
 
 errors_q4 = []
 errors_t3 = []

@@ -7,6 +7,7 @@ def generate_annulus_mesh_q4(Ri, Ro, nr, nt, theta_max=np.pi/2):
     nr: Số phần tử theo phương bán kính.
     nt: Số phần tử theo phương tiếp tuyến (góc).
     """
+    
     # 1. Tạo tọa độ các nút (Nodes)
     r = np.linspace(Ri, Ro, nr + 1)
     theta = np.linspace(0, theta_max, nt + 1)
