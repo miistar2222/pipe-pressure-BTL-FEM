@@ -1,97 +1,59 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
-def get_d_matrix(E, nu):
-    #Trả về ma trận đàn hồi D cho bài toán Biến dạng phẳng (Plane Strain)
-    factor = E / ((1 + nu) * (1 - 2 * nu))
-    D = factor * np.array([
-        [1 - nu,     nu,          0],
-        [nu,         1 - nu,      0],
-        [0,          0,           (1 - 2 * nu) / 2]
-    ])
-    return D
+# =========================
+# ELEMENTS
+# =========================
+class ElementQ4:
+    def __init__(self, mat):
+        self.mat = mat
 
-# ==========================================
-# PHẦN TỬ TAM GIÁC BẬC NHẤT (T3)
-# ==========================================
+    def stiffness(self, coords):
+        Ke = np.zeros((8,8))
+        D = self.mat.D
+        gauss = [-1/np.sqrt(3), 1/np.sqrt(3)]
 
-def stiffness_t3(nodes, D):
-    """
-    Tính ma trận độ cứng ke (6x6) cho phần tử T3
-    nodes: Tọa độ 3 nút [[x1, y1], [x2, y2], [x3, y3]]
-    """
-    x1, y1 = nodes[0]
-    x2, y2 = nodes[1]
-    x3, y3 = nodes[2]
+        for xi in gauss:
+            for eta in gauss:
+                dN_dxi = np.array([
+                    [-(1-eta), -(1-xi)],
+                    [(1-eta), -(1+xi)],
+                    [(1+eta), (1+xi)],
+                    [-(1+eta), (1-xi)]
+                ]) / 4
 
-    # Tính diện tích tam giác (2 * Area)
-    two_area = abs(x1*(y2 - y3) + x2*(y3 - y1) + x3*(y1 - y2))
-    area = two_area / 2
+                J = dN_dxi.T @ coords
+                dN_dx = dN_dxi @ np.linalg.inv(J)
 
-    # Các hệ số của ma trận B
-    a = [y2 - y3, y3 - y1, y1 - y2]
-    b = [x3 - x2, x1 - x3, x2 - x1]
+                B = np.zeros((3,8))
+                for i in range(4):
+                    B[0,2*i]   = dN_dx[i,0]
+                    B[1,2*i+1] = dN_dx[i,1]
+                    B[2,2*i]   = dN_dx[i,1]
+                    B[2,2*i+1] = dN_dx[i,0]
 
-    # Ma trận B (3x6)
-    B = np.array([
-        [a[0], 0   , a[1], 0   , a[2], 0   ],
-        [0   , b[0], 0   , b[1], 0   , b[2]],
-        [b[0], a[0], b[1], a[1], b[2], a[2]]
-    ]) / two_area
+                Ke += B.T @ D @ B * np.linalg.det(J)
 
-    # ke = B.T * D * B * Area * thickness (giả sử thickness = 1)
-    ke = B.T @ D @ B * area
-    return ke
+        return Ke
 
-# ==========================================
-# PHẦN TỬ TỨ GIÁC BẬC NHẤT (Q4)
-# ==========================================
+class ElementT3:
+    def __init__(self, mat):
+        self.mat = mat
 
-def shape_functions_q4(xi, eta):
-    """Trả về giá trị 4 hàm dạng tại tọa độ tự nhiên (xi, eta)"""
-    N = 0.25 * np.array([
-        (1 - xi) * (1 - eta),
-        (1 + xi) * (1 - eta),
-        (1 + xi) * (1 + eta),
-        (1 - xi) * (1 + eta)
-    ])
-    # Đạo hàm hàm dạng theo xi và eta
-    dN_dxi_eta = 0.25 * np.array([
-        [-(1 - eta),  (1 - eta), (1 + eta), -(1 + eta)], # dN/dxi
-        [-(1 - xi),  -(1 + xi),  (1 + xi),  (1 - xi)]   # dN/deta
-    ])
-    return N, dN_dxi_eta
+    def stiffness(self, coords):
+        x1,y1 = coords[0]
+        x2,y2 = coords[1]
+        x3,y3 = coords[2]
 
-def stiffness_q4(nodes, D):
-    """
-    Tính ma trận độ cứng ke (8x8) cho phần tử Q4 bằng tích phân Gauss 2x2
-    nodes: Tọa độ 4 nút [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
-    """
-    ke = np.zeros((8, 8))
-    # Điểm Gauss và trọng số cho tích phân 2x2
-    gauss_pts = [-1/np.sqrt(3), 1/np.sqrt(3)]
-    weights = [1, 1]
+        A = 0.5*np.linalg.det([[1,x1,y1],[1,x2,y2],[1,x3,y3]])
 
-    for i, xi in enumerate(gauss_pts):
-        for j, eta in enumerate(gauss_pts):
-            N, dN_dxi_eta = shape_functions_q4(xi, eta)
-            
-            # Ma trận Jacobian J = dN * nodes
-            J = dN_dxi_eta @ nodes
-            detJ = np.linalg.det(J)
-            invJ = np.linalg.inv(J)
-            
-            # Đạo hàm hàm dạng theo hệ tọa độ thực (x, y)
-            dN_dx_dy = invJ @ dN_dxi_eta
-            
-            # Xây dựng ma trận B (3x8)
-            B = np.zeros((3, 8))
-            for k in range(4):
-                B[0, 2*k]   = dN_dx_dy[0, k]
-                B[1, 2*k+1] = dN_dx_dy[1, k]
-                B[2, 2*k]   = dN_dx_dy[1, k]
-                B[2, 2*k+1] = dN_dx_dy[0, k]
-            
-            # Cộng dồn vào ke: B.T * D * B * detJ * weight
-            ke += B.T @ D @ B * detJ * weights[i] * weights[j]
-            
-    return ke
+        b = [y2-y3, y3-y1, y1-y2]
+        c = [x3-x2, x1-x3, x2-x1]
+
+        B = (1/(2*A))*np.array([
+            [b[0],0,b[1],0,b[2],0],
+            [0,c[0],0,c[1],0,c[2]],
+            [c[0],b[0],c[1],b[1],c[2],b[2]]
+        ])
+
+        return B.T @ self.mat.D @ B * A * 2
