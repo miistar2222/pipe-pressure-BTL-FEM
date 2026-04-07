@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Đã sửa lại lỗi Import
 from Mesh import Mesh
 from Material import Material
 from elements import ElementQ4, ElementT3
