@@ -1,52 +1,121 @@
 import numpy as np
-import matplotlib.pyplot as plt
+
+# =========================
+# SOLVER CLASS (Bổ sung mới)
+# =========================
+class FEM_Solver:
+    def __init__(self, mesh, element):
+        self.mesh = mesh
+        self.element = element
+        
+        # SỬA DÒNG DƯỚI ĐÂY (Mỗi node có 2 bậc tự do là u_x và u_y)
+        self.ndof = len(mesh.nodes) * 2 
+        
+        self.K = np.zeros((self.ndof, self.ndof))
+        self.F = np.zeros(self.ndof)
+        self.U = np.zeros(self.ndof)
+
+    def assemble(self):
+        for e in self.mesh.elements:
+            coords = self.mesh.nodes[e]
+            ke = self.element.stiffness(coords)
+            dof = []
+            for n in e:
+                dof.extend([2*n, 2*n+1])
+            for i in range(len(dof)):
+                for j in range(len(dof)):
+                    self.K[dof[i], dof[j]] += ke[i, j]
+
+    def apply_pressure(self, Ri, pi):
+        nodes_on_Ri = []
+        for i, (x, y) in enumerate(self.mesh.nodes):
+            if abs(np.hypot(x, y) - Ri) < 1e-5:
+                nodes_on_Ri.append(i)
+
+        # Sắp xếp các node trên biên trong theo góc theta
+        angles = [np.arctan2(self.mesh.nodes[i][1], self.mesh.nodes[i][0]) % (2*np.pi) for i in nodes_on_Ri]
+        sorted_indices = np.argsort(angles)
+        nodes_on_Ri = [nodes_on_Ri[i] for i in sorted_indices]
+
+        if self.mesh.mode == "full":
+            nodes_on_Ri.append(nodes_on_Ri[0])
+
+        for i in range(len(nodes_on_Ri)-1):
+            n1 = nodes_on_Ri[i]
+            n2 = nodes_on_Ri[i+1]
+            x1, y1 = self.mesh.nodes[n1]
+            x2, y2 = self.mesh.nodes[n2]
+            L = np.hypot(x2-x1, y2-y1)
+
+            # Tính vector pháp tuyến hướng ra ngoài
+            nx, ny = y2 - y1, -(x2 - x1)
+            L_norm = np.hypot(nx, ny)
+            if L_norm > 0:
+                nx, ny = nx / L_norm, ny / L_norm
+
+            # Phân bổ lực áp suất (p*L/2) cho 2 node của cạnh
+            F_x, F_y = pi * L * nx, pi * L * ny
+            self.F[2*n1] += F_x / 2
+            self.F[2*n1+1] += F_y / 2
+            self.F[2*n2] += F_x / 2
+            self.F[2*n2+1] += F_y / 2
+
+    def solve(self):
+        self.assemble()
+        fixed_dofs = []
+        
+        # Áp đặt điều kiện biên đối xứng thông minh cho cả "quarter" và "full"
+        # Tránh chuyển vị cứng (rigid body motion) nhưng vẫn cho phép dãn nở hướng kính
+        for i, (x, y) in enumerate(self.mesh.nodes):
+            if abs(x) < 1e-5:
+                fixed_dofs.append(2*i)     # u_x = 0 trên trục Y
+            if abs(y) < 1e-5:
+                fixed_dofs.append(2*i+1)   # u_y = 0 trên trục X
+
+        free_dofs = list(set(range(self.ndof)) - set(fixed_dofs))
+        
+        K_ff = self.K[np.ix_(free_dofs, free_dofs)]
+        F_f = self.F[free_dofs]
+        
+        # Giải hệ phương trình
+        self.U[free_dofs] = np.linalg.solve(K_ff, F_f)
 
 
 # =========================
 # POST: extract σr σθ
 # =========================
 def get_radial_stress(mesh, element, U):
-    r_list, sr, st = [],[],[]
+    r_list, sr, st = [], [], []
 
     for e in mesh.elements:
         coords = mesh.nodes[e]
-
         dof=[]
         for n in e:
-            dof += [2*n,2*n+1]
+            dof += [2*n, 2*n+1]
         u = U[dof]
 
-        # centroid
-        xc,yc = np.mean(coords,axis=0)
-        r = np.hypot(xc,yc)
-        theta = np.arctan2(yc,xc)
+        xc, yc = np.mean(coords, axis=0)
+        r = np.hypot(xc, yc)
+        theta = np.arctan2(yc, xc)
 
-        if len(e)==4:
-            dN_dxi = np.array([
-                [-0.25,-0.25],[0.25,-0.25],[0.25,0.25],[-0.25,0.25]
-            ])
+        if len(e) == 4:
+            dN_dxi = np.array([[-0.25,-0.25],[0.25,-0.25],[0.25,0.25],[-0.25,0.25]])
             J = dN_dxi.T @ coords
             dN_dx = dN_dxi @ np.linalg.inv(J)
-
             B = np.zeros((3,8))
             for i in range(4):
-                B[0,2*i]=dN_dx[i,0]
-                B[1,2*i+1]=dN_dx[i,1]
-                B[2,2*i]=dN_dx[i,1]
-                B[2,2*i+1]=dN_dx[i,0]
+                B[0,2*i]=dN_dx[i,0]; B[1,2*i+1]=dN_dx[i,1]
+                B[2,2*i]=dN_dx[i,1]; B[2,2*i+1]=dN_dx[i,0]
         else:
-            x1,y1=coords[0];x2,y2=coords[1];x3,y3=coords[2]
+            x1,y1=coords[0]; x2,y2=coords[1]; x3,y3=coords[2]
             A=0.5*np.linalg.det([[1,x1,y1],[1,x2,y2],[1,x3,y3]])
-            b=[y2-y3,y3-y1,y1-y2]
-            c=[x3-x2,x1-x3,x2-x1]
-            B=(1/(2*A))*np.array([
-                [b[0],0,b[1],0,b[2],0],
-                [0,c[0],0,c[1],0,c[2]],
-                [c[0],b[0],c[1],b[1],c[2],b[2]]
-            ])
+            b=[y2-y3,y3-y1,y1-y2]; c=[x3-x2,x1-x3,x2-x1]
+            B=(1/(2*A))*np.array([[b[0],0,b[1],0,b[2],0],
+                                  [0,c[0],0,c[1],0,c[2]],
+                                  [c[0],b[0],c[1],b[1],c[2],b[2]]])
 
         stress = element.mat.D @ (B @ u)
-        sx,sy,txy = stress
+        sx, sy, txy = stress
 
         c=np.cos(theta); s=np.sin(theta)
         sigma_r = sx*c*c + sy*s*s + 2*txy*s*c
@@ -60,48 +129,32 @@ def get_radial_stress(mesh, element, U):
 
 def compute_stress(mesh, element, U):
     sx, sy, txy, vm = [], [], [], []
-
     for e in mesh.elements:
         coords = mesh.nodes[e]
-
         dof=[]
         for n in e:
-            dof += [2*n,2*n+1]
+            dof += [2*n, 2*n+1]
         u = U[dof]
 
-        if len(e)==4:
-            dN_dxi = np.array([
-                [-0.25,-0.25],[0.25,-0.25],[0.25,0.25],[-0.25,0.25]
-            ])
+        if len(e) == 4:
+            dN_dxi = np.array([[-0.25,-0.25],[0.25,-0.25],[0.25,0.25],[-0.25,0.25]])
             J = dN_dxi.T @ coords
             dN_dx = dN_dxi @ np.linalg.inv(J)
-
             B = np.zeros((3,8))
             for i in range(4):
-                B[0,2*i]=dN_dx[i,0]
-                B[1,2*i+1]=dN_dx[i,1]
-                B[2,2*i]=dN_dx[i,1]
-                B[2,2*i+1]=dN_dx[i,0]
+                B[0,2*i]=dN_dx[i,0]; B[1,2*i+1]=dN_dx[i,1]
+                B[2,2*i]=dN_dx[i,1]; B[2,2*i+1]=dN_dx[i,0]
         else:
-            x1,y1=coords[0];x2,y2=coords[1];x3,y3=coords[2]
+            x1,y1=coords[0]; x2,y2=coords[1]; x3,y3=coords[2]
             A=0.5*np.linalg.det([[1,x1,y1],[1,x2,y2],[1,x3,y3]])
-            b=[y2-y3,y3-y1,y1-y2]
-            c=[x3-x2,x1-x3,x2-x1]
-            B=(1/(2*A))*np.array([
-                [b[0],0,b[1],0,b[2],0],
-                [0,c[0],0,c[1],0,c[2]],
-                [c[0],b[0],c[1],b[1],c[2],b[2]]
-            ])
+            b=[y2-y3,y3-y1,y1-y2]; c=[x3-x2,x1-x3,x2-x1]
+            B=(1/(2*A))*np.array([[b[0],0,b[1],0,b[2],0],
+                                  [0,c[0],0,c[1],0,c[2]],
+                                  [c[0],b[0],c[1],b[1],c[2],b[2]]])
 
         stress = element.mat.D @ (B @ u)
-        sx.append(stress[0])
-        sy.append(stress[1])
-        txy.append(stress[2])
-
-        vm.append(np.sqrt(
-            stress[0]**2 - stress[0]*stress[1] +
-            stress[1]**2 + 3*stress[2]**2
-        ))
+        sx.append(stress[0]); sy.append(stress[1]); txy.append(stress[2])
+        vm.append(np.sqrt(stress[0]**2 - stress[0]*stress[1] + stress[1]**2 + 3*stress[2]**2))
 
     return np.array(sx), np.array(sy), np.array(txy), np.array(vm)
 
@@ -112,18 +165,11 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
     fig, axs = plt.subplots(2, 3, figsize=(14, 8))
     axs = axs.flatten()
 
-    # =========================
-    # 1. Mesh
-    # =========================
     for e in mesh.elements:
         pts = mesh.nodes[e + [e[0]]]
         axs[0].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5)
-    axs[0].set_title("Mesh")
-    axs[0].set_aspect('equal')
+    axs[0].set_title("Mesh"); axs[0].set_aspect('equal')
 
-    # =========================
-    # 2. Deformation
-    # =========================
     deformed = mesh.nodes.copy()
     for i in range(len(mesh.nodes)):
         deformed[i,0] += scale * U[2*i]
@@ -132,14 +178,9 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
     for e in mesh.elements:
         pts = deformed[e + [e[0]]]
         axs[1].plot(pts[:,0], pts[:,1], 'r-')
-    axs[1].set_title("Deformation")
-    axs[1].set_aspect('equal')
+    axs[1].set_title("Deformation"); axs[1].set_aspect('equal')
 
-    # =========================
-    # 3. Stress
-    # =========================
     sx, sy, txy, vm = compute_stress(mesh, element, U)
-
     polys = [mesh.nodes[e] for e in mesh.elements]
 
     def plot_field(ax, values, name):
@@ -147,22 +188,19 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
         ax.add_collection(pc)
         ax.autoscale()
         fig.colorbar(pc, ax=ax)
-        ax.set_title(name)
-        ax.set_aspect('equal')
+        ax.set_title(name); ax.set_aspect('equal')
 
     plot_field(axs[2], sx, "Sigma X")
     plot_field(axs[3], sy, "Sigma Y")
     plot_field(axs[4], txy, "Tau XY")
     plot_field(axs[5], vm, "Von Mises")
 
-    plt.suptitle(title)
-    plt.tight_layout()
-    plt.show()
+    plt.suptitle(title); plt.tight_layout(); plt.show()
 
 # =========================
 # ANALYTIC
 # =========================
-def lame(r,Ri,Ro,pi,po):
+def lame(r, Ri, Ro, pi, po):
     A = (pi*Ri**2 - po*Ro**2)/(Ro**2-Ri**2)
     B = (Ri**2*Ro**2*(pi-po))/(Ro**2-Ri**2)
     return A-B/r**2, A+B/r**2
