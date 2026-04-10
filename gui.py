@@ -3,7 +3,6 @@ from tkinter import ttk, messagebox
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Import các class và hàm từ project của bạn
 from Mesh import Mesh
 from Material import Material
 from elements import ElementQ4, ElementT3
@@ -59,15 +58,15 @@ def run_simulation():
         plt.figure(figsize=(10, 5))
         
         plt.subplot(1, 2, 1)
-        plt.plot(r, sr_exact, 'k-', label="Giải tích (Exact)")
+        plt.plot(r, sr_exact, 'k-', label="Calculus")
         plt.scatter(r_q4, sr_q4, s=15, label=f"FEM ({domain}) - Q4")
         plt.scatter(r_t3, sr_t3, s=15, marker='x', label=f"FEM ({domain}) - T3")
-        plt.xlabel("Bán kính r (m)"); plt.ylabel("Ứng suất (Pa)")
+        plt.xlabel("r (m)"); plt.ylabel("Ứng suất (Pa)")
         plt.legend(); plt.title("Ứng suất hướng kính (\u03C3_r)")
         plt.grid(True)
 
         plt.subplot(1, 2, 2)
-        plt.plot(r, st_exact, 'k-', label="Giải tích (Exact)")
+        plt.plot(r, st_exact, 'k-', label="Calculus (Exact)")
         plt.scatter(r_q4, st_q4, s=15, label=f"FEM ({domain}) - Q4")
         plt.scatter(r_t3, st_t3, s=15, marker='x', label=f"FEM ({domain}) - T3")
         plt.xlabel("Bán kính r (m)"); plt.ylabel("Ứng suất (Pa)")
@@ -93,7 +92,7 @@ def run_simulation():
 # THIẾT KẾ GIAO DIỆN (GUI)
 # ==========================================
 root = tk.Tk()
-root.title("Chương Trình Mô Phỏng FEM - Ống Chịu Áp Suất")
+root.title("piping presure")
 root.geometry("450x500")
 root.resizable(False, False)
 
@@ -112,7 +111,7 @@ def create_input(frame, label_text, default_val, row):
     entry.grid(row=row, column=1, pady=2, padx=5)
     return entry
 
-entry_E = create_input(frame_inputs, "Module đàn hồi E (Pa):", 210e9, 0)
+entry_E  = create_input(frame_inputs, "Module đàn hồi E (Pa):", 210e9, 0)
 entry_nu = create_input(frame_inputs, "Hệ số Poisson \u03BD:", 0.3, 1)
 entry_Ri = create_input(frame_inputs, "Bán kính trong Ri (m):", 0.05, 2)
 entry_Ro = create_input(frame_inputs, "Bán kính ngoài Ro (m):", 0.1, 3)
@@ -128,8 +127,8 @@ frame_options.pack(fill="x", padx=10, pady=5)
 # Lựa chọn Mô hình (1/4 hay Full)
 var_domain = tk.StringVar(value="quarter")
 ttk.Label(frame_options, text="Mô hình:").grid(row=0, column=0, sticky="w")
-ttk.Radiobutton(frame_options, text="1/4 (Quarter)", variable=var_domain, value="quarter").grid(row=0, column=1, sticky="w")
-ttk.Radiobutton(frame_options, text="Full 360 độ", variable=var_domain, value="full").grid(row=0, column=2, sticky="w")
+ttk.Radiobutton(frame_options, text="1/4 circle", variable=var_domain, value="quarter").grid(row=0, column=1, sticky="w")
+ttk.Radiobutton(frame_options, text="full circle", variable=var_domain, value="full").grid(row=0, column=2, sticky="w")
 
 # Lựa chọn Loại phần tử (Tam giác hay Tứ giác)
 var_elem = tk.StringVar(value="Q4")
@@ -139,11 +138,11 @@ ttk.Radiobutton(frame_options, text="Tam giác (T3)", variable=var_elem, value="
 
 # Chế độ so sánh
 var_compare = tk.BooleanVar(value=False)
-chk_compare = ttk.Checkbutton(frame_options, text="Chế độ SO SÁNH (Chạy cả Q4 và T3 để so sánh biểu đồ)", variable=var_compare)
+chk_compare = ttk.Checkbutton(frame_options, text="so sánh Q4 và T3 với kết quả giải tích", variable=var_compare)
 chk_compare.grid(row=2, column=0, columnspan=3, sticky="w", pady=10)
 
 # Nút thực thi
-btn_run = ttk.Button(root, text="CHẠY MÔ PHỎNG", command=run_simulation)
+btn_run = ttk.Button(root, text="Simulation", command=run_simulation)
 btn_run.pack(pady=15, ipadx=10, ipady=5)
 
 root.mainloop()

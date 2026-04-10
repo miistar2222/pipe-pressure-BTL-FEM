@@ -1,25 +1,21 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-# =========================
-# ELEMENTS
-# =========================
 class ElementQ4:
     def __init__(self, mat):
         self.mat = mat
 
-    def stiffness(self, coords):
-        Ke = np.zeros((8,8))
-        D = self.mat.D
-        gauss = [-1/np.sqrt(3), 1/np.sqrt(3)]
+    def stiffness(self, coords):    #coords: tọa độ x, y của 4 nút
+        Ke = np.zeros((8,8))        #trả về ma trận 8x8
+        D = self.mat.D              #lấy E và nu từ Material
+        gauss = [-1/np.sqrt(3), 1/np.sqrt(3)]   #gauss bậc 2, tứ giác 4 điểm nên dùng gauss bậc 2
 
         for xi in gauss:
             for eta in gauss:
                 dN_dxi = np.array([
                     [-(1-eta), -(1-xi)],
-                    [(1-eta), -(1+xi)],
-                    [(1+eta), (1+xi)],
-                    [-(1+eta), (1-xi)]
+                    [ (1-eta), -(1+xi)],
+                    [ (1+eta),  (1+xi)],
+                    [-(1+eta),  (1-xi)]
                 ]) / 4
 
                 J = dN_dxi.T @ coords

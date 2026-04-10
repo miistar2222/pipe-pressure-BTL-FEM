@@ -1,14 +1,10 @@
 import numpy as np
 
-# =========================
-# SOLVER CLASS (Bổ sung mới)
-# =========================
 class FEM_Solver:
     def __init__(self, mesh, element):
         self.mesh = mesh
         self.element = element
         
-        # SỬA DÒNG DƯỚI ĐÂY (Mỗi node có 2 bậc tự do là u_x và u_y)
         self.ndof = len(mesh.nodes) * 2 
         
         self.K = np.zeros((self.ndof, self.ndof))
