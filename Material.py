@@ -1,6 +1,6 @@
 import numpy as np
 
-class Material:
+class material:
     def __init__(self, E, nu):
         self.E = E
         self.nu = nu

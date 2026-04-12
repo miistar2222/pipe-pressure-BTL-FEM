@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Mesh import Mesh
-from Material import Material
-from elements import ElementQ4, ElementT3
+import mesh
+from material import mate
+from elements import Q4, T3
 from FEM import FEM_Solver, get_radial_stress, plot_all, lame
 
 # =========================
@@ -13,33 +13,33 @@ E, nu = 210e9, 0.3
 Ri, Ro = 0.05, 0.1
 pi, po = 1e6, 0
 
-mat = Material(E, nu)
+mat = mate(E, nu)
 
 # =========================
 # CASE 1: AXISYMMETRIC (1/4)
 # =========================
-mesh_q_Q4 = Mesh(Ri, Ro, 12, 20, "Q4", mode="quarter")
-mesh_q_T3 = Mesh(Ri, Ro, 12, 20, "T3", mode="quarter")
+mesh_q_Q4 = mesh(Ri, Ro, 12, 20, "Q4", mode="quarter")
+mesh_q_T3 = mesh(Ri, Ro, 12, 20, "T3", mode="quarter")
 
-fem_q_Q4 = FEM_Solver(mesh_q_Q4, ElementQ4(mat))
+fem_q_Q4 = FEM_Solver(mesh_q_Q4, Q4(mat))
 fem_q_Q4.apply_pressure(Ri, pi)
 fem_q_Q4.solve()
 
-fem_q_T3 = FEM_Solver(mesh_q_T3, ElementT3(mat))
+fem_q_T3 = FEM_Solver(mesh_q_T3, T3(mat))
 fem_q_T3.apply_pressure(Ri, pi)
 fem_q_T3.solve()
 
 # =========================
 # CASE 2: FULL 360
 # =========================
-mesh_f_Q4 = Mesh(Ri, Ro, 12, 40, "Q4", mode="full")
-mesh_f_T3 = Mesh(Ri, Ro, 12, 40, "T3", mode="full")
+mesh_f_Q4 = mesh(Ri, Ro, 12, 40, "Q4", mode="full")
+mesh_f_T3 = mesh(Ri, Ro, 12, 40, "T3", mode="full")
 
-fem_f_Q4 = FEM_Solver(mesh_f_Q4, ElementQ4(mat))
+fem_f_Q4 = FEM_Solver(mesh_f_Q4, Q4(mat))
 fem_f_Q4.apply_pressure(Ri, pi)
 fem_f_Q4.solve()
 
-fem_f_T3 = FEM_Solver(mesh_f_T3, ElementT3(mat))
+fem_f_T3 = FEM_Solver(mesh_f_T3, T3(mat))
 fem_f_T3.apply_pressure(Ri, pi)
 fem_f_T3.solve()
 

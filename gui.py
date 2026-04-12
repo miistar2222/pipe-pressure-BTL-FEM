@@ -3,8 +3,8 @@ from tkinter import ttk, messagebox
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Mesh import Mesh
-from Material import Material
+import mesh
+from material import mate
 from elements import ElementQ4, ElementT3
 from FEM import FEM_Solver, get_radial_stress, plot_all, lame
 
@@ -29,12 +29,12 @@ def run_simulation():
     is_compare = var_compare.get()
 
     # Khởi tạo vật liệu
-    mat = Material(E_val, nu_val)
+    mat = mate(E_val, nu_val)
 
     if is_compare:
         # CHẾ ĐỘ SO SÁNH: Chạy cả Q4 và T3 để vẽ biểu đồ so sánh ứng suất
-        mesh_q4 = Mesh(Ri_val, Ro_val, nr_val, nt_val, "Q4", mode=domain)
-        mesh_t3 = Mesh(Ri_val, Ro_val, nr_val, nt_val, "T3", mode=domain)
+        mesh_q4 = mesh(Ri_val, Ro_val, nr_val, nt_val, "Q4", mode=domain)
+        mesh_t3 = mesh(Ri_val, Ro_val, nr_val, nt_val, "T3", mode=domain)
 
         # Giải Q4
         fem_q4 = FEM_Solver(mesh_q4, ElementQ4(mat))
@@ -78,7 +78,7 @@ def run_simulation():
 
     else:
         # CHẾ ĐỘ ĐƠN LẺ: Chạy 1 loại phần tử và xuất ra hình ảnh Mesh + Biến dạng + Trường ứng suất
-        mesh = Mesh(Ri_val, Ro_val, nr_val, nt_val, elem_type, mode=domain)
+        mesh = mesh(Ri_val, Ro_val, nr_val, nt_val, elem_type, mode=domain)
         ElementClass = ElementQ4 if elem_type == "Q4" else ElementT3
         
         fem = FEM_Solver(mesh, ElementClass(mat))

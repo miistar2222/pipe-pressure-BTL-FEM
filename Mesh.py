@@ -1,7 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-class Mesh:
+class mesh:
     def __init__(self, Ri, Ro, nr, nt, element_type, mode="quarter"):
         self.nodes = []
         self.elements = []

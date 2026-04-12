@@ -1,6 +1,6 @@
 import numpy as np
 
-class ElementQ4:        #hàm dạng cho phần tử tứ giác
+class Q4:        #hàm dạng cho phần tử tứ giác
     def __init__(self, mat):
         self.mat = mat
 
@@ -34,7 +34,7 @@ class ElementQ4:        #hàm dạng cho phần tử tứ giác
                 #[K^e]=W  [B]^T [D]  [B]  det(j)
         return Ke
 
-class ElementT3:
+class T3:
     def __init__(self, mat):
         self.mat = mat
 
