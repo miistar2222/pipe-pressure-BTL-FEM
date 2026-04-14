@@ -22,61 +22,65 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
     fig, axs = plt.subplots(2, 4, figsize=(18, 8))
     axs = axs.flatten()
 
-    # 1. Vẽ lưới ban đầu
+    # 1. Vẽ lưới ban đầu (Ô số 0)
     for e in mesh.elements:
         pts = mesh.nodes[e + [e[0]]]
         axs[0].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5)
     axs[0].set_title("Original Mesh")
     axs[0].set_aspect('equal')
 
-    # 2. Vẽ Vector chuyển vị CHUẨN HÓA, CHẠM ĐÚNG VỊ TRÍ
+    # 2. Vẽ LƯỚI BIẾN DẠNG chồng lên LƯỚI GỐC và MŨI TÊN (Ô số 1)
+    
+    # Bước A: Vẽ lưới gốc làm nền (màu đen, mờ alpha= độ mờ)
     for e in mesh.elements:
         pts = mesh.nodes[e + [e[0]]]
-        axs[1].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5)
+        axs[1].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5, alpha=1)
     
+    # Bước B: Tính toán và vẽ lưới biến dạng (màu đỏ)
+    # Tọa độ mới = Tọa độ cũ + Chuyển vị * Hệ số phóng đại (scale)
+    deformed_nodes = mesh.nodes.copy()
+    deformed_nodes[:, 0] += ux * scale
+    deformed_nodes[:, 1] += uy * scale
+    
+    for e in mesh.elements:
+        pts = deformed_nodes[e + [e[0]]]
+        axs[1].plot(pts[:,0], pts[:,1], 'r-', linewidth=0.7)
+    
+    # Bước C: Vẽ Vector chuyển vị chuẩn hóa (Giữ nguyên logic của bạn)
     r_nodes = np.hypot(mesh.nodes[:, 0], mesh.nodes[:, 1])
     Ri = np.min(r_nodes)
     Ro = np.max(r_nodes)
     
-    # Tách riêng index của viền trong và viền ngoài
     tol = 1e-5
     inner_idx = np.where(np.abs(r_nodes - Ri) < tol)[0]
     outer_idx = np.where(np.abs(r_nodes - Ro) < tol)[0]
     
-    # Quy định chiều dài cố định cho tất cả các mũi tên (bằng 25% bề dày ống)
     arrow_len = (Ro - Ri) * 0.25 
-    
-    # --- XỬ LÝ VIỀN TRONG ---
-    x_in = mesh.nodes[inner_idx, 0]
-    y_in = mesh.nodes[inner_idx, 1]
-    # Tính độ lớn vector thực tế (cộng thêm 1e-12 để tránh lỗi chia cho 0)
+    color_ri='red'; color_ro='red'
+    width=0.01; headwidth=3; headlength=5    
+
+    # Viền trong: pivot='tail' (đuôi chạm nút gốc)
+    x_in, y_in = mesh.nodes[inner_idx, 0], mesh.nodes[inner_idx, 1]
     mag_in = np.hypot(ux[inner_idx], uy[inner_idx]) + 1e-12 
-    # Chuẩn hóa để độ dài vector luôn bằng `arrow_len`
     dx_in = (ux[inner_idx] / mag_in) * arrow_len
     dy_in = (uy[inner_idx] / mag_in) * arrow_len
     
-    color_ri='red', color_ro='red'
-    width=0.01,headwidth=3,headlength=5    
-
-    # pivot='tail': đuôi mũi tên chạm vào nút tọa độ
     axs[1].quiver(x_in, y_in, dx_in, dy_in, color=color_ri, angles='xy', scale_units='xy', scale=1, 
                   width=width, headwidth=headwidth, headlength=headlength, pivot='tail', zorder=5)
 
-    # --- XỬ LÝ VIỀN NGOÀI ---
-    x_out = mesh.nodes[outer_idx, 0]
-    y_out = mesh.nodes[outer_idx, 1]
+    # Viền ngoài: pivot='tip' (đầu chạm nút gốc)
+    x_out, y_out = mesh.nodes[outer_idx, 0], mesh.nodes[outer_idx, 1]
     mag_out = np.hypot(ux[outer_idx], uy[outer_idx]) + 1e-12
     dx_out = (ux[outer_idx] / mag_out) * arrow_len
     dy_out = (uy[outer_idx] / mag_out) * arrow_len
     
-    # pivot='tip': đầu mũi tên cắm vào nút tọa độ
     axs[1].quiver(x_out, y_out, dx_out, dy_out, color=color_ro, angles='xy', scale_units='xy', scale=1, 
                   width=width, headwidth=headwidth, headlength=headlength, pivot='tip', zorder=5)
     
-    axs[1].set_title("Boundary Displacements (Normalized)")
+    axs[1].set_title(f"Deformed Overlay (Scale {scale}x)")
     axs[1].set_aspect('equal')
 
-    # 3. Các biểu đồ ứng suất
+    # 3. Các biểu đồ ứng suất (Giữ nguyên)
     plot_contour(mesh, axs[2], sx, r"$\sigma_x$ (Cartesian)")
     plot_contour(mesh, axs[3], sy, r"$\sigma_y$ (Cartesian)")
     plot_contour(mesh, axs[4], txy, r"$\tau_{xy}$ (Shear)")
