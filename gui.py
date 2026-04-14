@@ -32,8 +32,8 @@ class FEM_GUI:
         self.entry_Ro = self.create_input(frame_inputs, "Bán kính ngoài Ro (m):", 0.1, 3)
         self.entry_pi = self.create_input(frame_inputs, "Áp suất trong pi (Pa):", 1e6, 4)
         self.entry_po = self.create_input(frame_inputs, "Áp suất ngoài po (Pa):", 0, 5)
-        self.entry_nr = self.create_input(frame_inputs, "Số phần tử theo bán kính:", 12, 6)
-        self.entry_nt = self.create_input(frame_inputs, "Số phần tử theo chu vi:", 20, 7)
+        self.entry_nr = self.create_input(frame_inputs, "Số phần tử theo bán kính:", 6, 6)
+        self.entry_nt = self.create_input(frame_inputs, "Số phần tử theo chu vi:", 10, 7)
 
         # Khung tùy chọn
         frame_options = ttk.LabelFrame(self.root, text="Tùy chọn cấu hình", padding=(10, 10))
@@ -74,7 +74,7 @@ class FEM_GUI:
             nr_val = int(self.entry_nr.get())
             nt_val = int(self.entry_nt.get())
         except ValueError:
-            messagebox.showerror("Lỗi nhập liệu", "Vui lòng nhập đúng định dạng số!")
+            messagebox.showerror("Nhập sai ròi, nhập số đi mài")
             return
 
         domain = self.var_domain.get()

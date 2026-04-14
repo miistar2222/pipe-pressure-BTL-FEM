@@ -26,7 +26,7 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
     for e in mesh.elements:
         pts = mesh.nodes[e + [e[0]]]
         axs[0].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5)
-    axs[0].set_title("Original Mesh")
+    axs[0].set_title("Mesh")
     axs[0].set_aspect('equal')
 
     # 2. Vẽ LƯỚI BIẾN DẠNG chồng lên LƯỚI GỐC và MŨI TÊN (Ô số 1)
@@ -77,16 +77,16 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
     axs[1].quiver(x_out, y_out, dx_out, dy_out, color=color_ro, angles='xy', scale_units='xy', scale=1, 
                   width=width, headwidth=headwidth, headlength=headlength, pivot='tip', zorder=5)
     
-    axs[1].set_title(f"Deformed Overlay (Scale {scale}x)")
+    axs[1].set_title(f"Deformed Overlay")
     axs[1].set_aspect('equal')
 
     # 3. Các biểu đồ ứng suất (Giữ nguyên)
-    plot_contour(mesh, axs[2], sx, r"$\sigma_x$ (Cartesian)")
-    plot_contour(mesh, axs[3], sy, r"$\sigma_y$ (Cartesian)")
-    plot_contour(mesh, axs[4], txy, r"$\tau_{xy}$ (Shear)")
-    plot_contour(mesh, axs[5], vm, r"Von Mises Stress")
-    plot_contour(mesh, axs[6], sr, r"$\sigma_r$ (Radial Stress)")
-    plot_contour(mesh, axs[7], st, r"$\sigma_{\theta}$ (Hoop Stress)")
+    plot_contour(mesh, axs[2], sx, r"$\sigma_x$")
+    plot_contour(mesh, axs[3], sy, r"$\sigma_y$")
+    plot_contour(mesh, axs[4], txy, r"$\tau_{xy}$")
+    plot_contour(mesh, axs[5], vm, r"Von Mises")
+    plot_contour(mesh, axs[6], sr, r"$\sigma_r$")
+    plot_contour(mesh, axs[7], st, r"$\sigma_{\theta}$")
 
     plt.suptitle(title, fontsize=16)
     plt.tight_layout()
