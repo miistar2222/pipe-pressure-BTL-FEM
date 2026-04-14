@@ -30,8 +30,8 @@ class Q4:        #hàm dạng cho phần tử tứ giác
                     B[2,2*i]   = dN_dx[i,1]     #gamma_xy
                     B[2,2*i+1] = dN_dx[i,0]     #gamma_xy
 
-                Ke += 1 * B.T @ D @ B * np.linalg.det(J)
-                #[K^e]=W  [B]^T [D]  [B]  det(j)
+                Ke   +=   B.T @ D @ B * np.linalg.det(J)
+                #[K^e]=  [B]^T [D]  [B]  det(j)
         return Ke
 
 class T3:

@@ -1,7 +1,7 @@
 import numpy as np
 
 #[K]{U}={F}
-class FEM:
+class FEM_Solver:
     def __init__(self, mesh, element):
         self.mesh = mesh
         self.element = element
@@ -14,16 +14,20 @@ class FEM:
 
     def assemble(self):
         for e in self.mesh.elements:
-            coords = self.mesh.nodes[e]
-            ke = self.element.stiffness(coords)
+            coords = self.mesh.nodes[e] 
+            ke = self.element.stiffness(coords) 
             dof = []
             for n in e:
                 dof.extend([2*n, 2*n+1])    #xác định tọa độ nút
             for i in range(len(dof)):
                 for j in range(len(dof)):
                     self.K[dof[i], dof[j]] += ke[i, j] #nhồi ma trận nhỏ của từng nút vô ma trận tổng thể
-        print(dof)
-        print(ke)
+
+        #print(dof)
+        #print("K:\n", self.K)
+        #print(self.mesh.nodes)
+        #print(ke)
+        #print(self.K)
 
     def apply_force(self, Ri, pi):
         #F=pi*L
