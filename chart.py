@@ -36,6 +36,8 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
         pts = mesh.nodes[e + [e[0]]]
         axs[1].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5, alpha=1)
     
+    #chỗ này vẽ nó dell đẹp nên tao để vậy luôn
+    '''
     # Bước B: Tính toán và vẽ lưới biến dạng (màu đỏ)
     # Tọa độ mới = Tọa độ cũ + Chuyển vị * Hệ số phóng đại (scale)
     deformed_nodes = mesh.nodes.copy()
@@ -45,8 +47,8 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
     for e in mesh.elements:
         pts = deformed_nodes[e + [e[0]]]
         axs[1].plot(pts[:,0], pts[:,1], 'r-', linewidth=0.7)
-    
-    # Bước C: Vẽ Vector chuyển vị chuẩn hóa (Giữ nguyên logic của bạn)
+    '''
+    # Bước C: Vẽ Vector chuyển vị chuẩn hóa 
     r_nodes = np.hypot(mesh.nodes[:, 0], mesh.nodes[:, 1])
     Ri = np.min(r_nodes)
     Ro = np.max(r_nodes)
@@ -80,7 +82,7 @@ def plot_all(mesh, U, element, scale=200, title="FEM Results"):
     axs[1].set_title(f"Deformed Overlay")
     axs[1].set_aspect('equal')
 
-    # 3. Các biểu đồ ứng suất (Giữ nguyên)
+    # 3. Các biểu đồ ứng suất
     plot_contour(mesh, axs[2], sx, r"$\sigma_x$")
     plot_contour(mesh, axs[3], sy, r"$\sigma_y$")
     plot_contour(mesh, axs[4], txy, r"$\tau_{xy}$")
