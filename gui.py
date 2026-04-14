@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import numpy as np
-import matplotlib.pyplot as plt
 
 from mesh import mesh
 from material import material
@@ -9,7 +8,9 @@ from elements import Q4, T3
 from FEM import FEM_Solver
 from analytic import lame
 from post import PostProcessor
-from chart import plot_all
+
+# Nhập cả 2 hàm vẽ từ file chart
+from chart import plot_all, plot_comparison
 
 class FEM_GUI:
     def __init__(self, root):
@@ -83,19 +84,21 @@ class FEM_GUI:
         mat = material(E_val, nu_val)
 
         if is_compare:
+            # 1. Tính toán
             mesh_q4 = mesh(Ri_val, Ro_val, nr_val, nt_val, "Q4", mode=domain)
             mesh_t3 = mesh(Ri_val, Ro_val, nr_val, nt_val, "T3", mode=domain)
 
             fem_q4 = FEM_Solver(mesh_q4, Q4(mat))
-            fem_q4.apply_pressure(Ri_val, pi_val)
+            fem_q4.apply_force(Ri_val, pi_val)
             fem_q4.solve()
 
             fem_t3 = FEM_Solver(mesh_t3, T3(mat))
-            fem_t3.apply_pressure(Ri_val, pi_val)
+            fem_t3.apply_force(Ri_val, pi_val)
             fem_t3.solve()
 
-            r = np.linspace(Ri_val, Ro_val, 200)
-            sr_exact, st_exact = lame(r, Ri_val, Ro_val, pi_val, po_val)
+            # 2. Hậu xử lý dữ liệu
+            r_exact = np.linspace(Ri_val, Ro_val, 200)
+            sr_exact, st_exact = lame(r_exact, Ri_val, Ro_val, pi_val, po_val)
 
             post_q4 = PostProcessor(mesh_q4, fem_q4.element, fem_q4.U)
             _, polar_q4 = post_q4.get_element_stresses()
@@ -105,26 +108,8 @@ class FEM_GUI:
             _, polar_t3 = post_t3.get_element_stresses()
             r_t3, _, sr_t3, st_t3 = polar_t3
 
-            plt.figure(figsize=(10, 5))
-            
-            plt.subplot(1, 2, 1)
-            plt.plot(r, sr_exact, 'k-', label="Calculus")
-            plt.scatter(r_q4, sr_q4, s=15, label=f"FEM ({domain}) - Q4")
-            plt.scatter(r_t3, sr_t3, s=15, marker='x', label=f"FEM ({domain}) - T3")
-            plt.xlabel("r (m)"); plt.ylabel("Ứng suất (Pa)")
-            plt.legend(); plt.title("Ứng suất hướng kính (\u03C3_r)")
-            plt.grid(True)
-
-            plt.subplot(1, 2, 2)
-            plt.plot(r, st_exact, 'k-', label="Calculus (Exact)")
-            plt.scatter(r_q4, st_q4, s=15, label=f"FEM ({domain}) - Q4")
-            plt.scatter(r_t3, st_t3, s=15, marker='x', label=f"FEM ({domain}) - T3")
-            plt.xlabel("Bán kính r (m)"); plt.ylabel("Ứng suất (Pa)")
-            plt.legend(); plt.title("Ứng suất tiếp (\u03C3_\u03B8)")
-            plt.grid(True)
-
-            plt.tight_layout()
-            plt.show()
+            # 3. Giao nhiệm vụ vẽ biểu đồ cho chart.py
+            plot_comparison(r_exact, sr_exact, st_exact, r_q4, sr_q4, st_q4, r_t3, sr_t3, st_t3, domain)
 
         else:
             mesh_obj = mesh(Ri_val, Ro_val, nr_val, nt_val, elem_type, mode=domain)
@@ -134,4 +119,5 @@ class FEM_GUI:
             fem.apply_force(Ri_val, pi_val)
             fem.solve()
 
+            # Giao nhiệm vụ vẽ biểu đồ cho chart.py
             plot_all(mesh_obj, fem.U, fem.element, title=f"Kết quả FEM: Mô hình {domain} - Phần tử {elem_type}")
