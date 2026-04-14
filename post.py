@@ -1,124 +1,90 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.collections import PolyCollection
-# =========================
-# POST: extract σr σθ
-# =========================
-def get_radial_stress(mesh, element, U):
-    r_list, sr, st = [], [], []
 
-    for e in mesh.elements:
-        coords = mesh.nodes[e]
-        dof=[]
-        for n in e:
-            dof += [2*n, 2*n+1]
-        u = U[dof]
+class PostProcessor:
+    def __init__(self, mesh, element, U):
+        """
+        Khởi tạo Bộ hậu xử lý với dữ liệu đầu vào.
+        Lưu trữ các dữ liệu này dưới dạng 'thuộc tính' (attributes) của class.
+        """
+        self.mesh = mesh
+        self.element = element
+        self.U = U
 
-        xc, yc = np.mean(coords, axis=0)
-        r = np.hypot(xc, yc)
-        theta = np.arctan2(yc, xc)
-
-        if len(e) == 4:
+    #Hàm tính toán Isoparametric tại tâm phần tử
+    def _compute_B_matrix(self, coords):
+        if len(coords) == 4: # phần tử Q4 (isoparametric)
             dN_dxi = np.array([[-0.25,-0.25],[0.25,-0.25],[0.25,0.25],[-0.25,0.25]])
             J = dN_dxi.T @ coords
             dN_dx = dN_dxi @ np.linalg.inv(J)
             B = np.zeros((3,8))
             for i in range(4):
-                B[0,2*i]=dN_dx[i,0]; B[1,2*i+1]=dN_dx[i,1]
-                B[2,2*i]=dN_dx[i,1]; B[2,2*i+1]=dN_dx[i,0]
-        else:
-            x1,y1=coords[0]; x2,y2=coords[1]; x3,y3=coords[2]
-            A=0.5*np.linalg.det([[1,x1,y1],[1,x2,y2],[1,x3,y3]])
-            b=[y2-y3,y3-y1,y1-y2]; c=[x3-x2,x1-x3,x2-x1]
-            B=(1/(2*A))*np.array([[b[0],0,b[1],0,b[2],0],
-                                  [0,c[0],0,c[1],0,c[2]],
-                                  [c[0],b[0],c[1],b[1],c[2],b[2]]])
+                B[0,2*i] = dN_dx[i,0]; B[1,2*i+1] = dN_dx[i,1]
+                B[2,2*i] = dN_dx[i,1]; B[2,2*i+1] = dN_dx[i,0]
+            return B
+        else:   # phần tử tam giác T3 (isoparametric)
+            x1,y1 = coords[0]; x2,y2 = coords[1]; x3,y3 = coords[2]
+            A = 0.5 * np.linalg.det([[1,x1,y1], [1,x2,y2], [1,x3,y3]])
+            b = [y2-y3, y3-y1, y1-y2]; c = [x3-x2, x1-x3, x2-x1]
+            B = (1/(2*A)) * np.array([[b[0],0,b[1],0,b[2],0],
+                                      [0,c[0],0,c[1],0,c[2]],
+                                      [c[0],b[0],c[1],b[1],c[2],b[2]]])
+            return B
 
-        stress = element.mat.D @ (B @ u)
-        sx, sy, txy = stress
+    def get_displacements(self):
+        #Tính chuyển vị theo hệ Descartes (x, y) và Cực (r, theta)
+        #Sử dụng self.U thay vì U truyền từ ngoài vào
+        #[u_{x0}, u_{y0}, u_{x1}, u_{y1}, u_{x2}, u_{y2}, ...]
+        ux = self.U[0::2]
+        uy = self.U[1::2] 
+        
+        #Chuyển sang hệ cực
+        ur = np.zeros_like(ux)  #Chuyển vị hướng tâm
+        utheta = np.zeros_like(uy) #Chuyển vị hướng vòng quanh
+        
+        #Tính theta và chuyển đổi từ (ux, uy) sang (ur, utheta)
+        for i, (x, y) in enumerate(self.mesh.nodes):
+            theta = np.arctan2(y, x)  
+            c, s = np.cos(theta), np.sin(theta) 
+            ur[i] = ux[i]*c + uy[i]*s   
+            utheta[i] = -ux[i]*s + uy[i]*c  
+            
+        return ux, uy, ur, utheta
 
-        c=np.cos(theta); s=np.sin(theta)
-        sigma_r = sx*c*c + sy*s*s + 2*txy*s*c
-        sigma_t = sx*s*s + sy*c*c - 2*txy*s*c
+    def get_element_stresses(self):
+        #Tính ứng suất hệ Descartes, Cực và Von Mises tại tâm phần tử
+        sx_list, sy_list, txy_list = [], [], []    #Ứng suất theo x,y và ứng suất cắt (tau xy)
+        vm_list = []    #Von Mises
+        sr_list, st_list = [], [] #Ứng suất hướng tâm và vòng quanh
+        r_list, theta_list = [], []    #Bán kính và góc của tâm phần tử
 
-        r_list.append(r)
-        sr.append(sigma_r)
-        st.append(sigma_t)
+        for e in self.mesh.elements:    #lấy 3/4 nút trong 1 phần tử để nhét vô e
+            coords = self.mesh.nodes[e] 
+            dof = []    
+            for n in e: dof += [2*n, 2*n+1] 
+            u = self.U[dof]
 
-    return np.array(r_list), np.array(sr), np.array(st)
+            B = self._compute_B_matrix(coords)
+            
+            # Ứng suất XY; với {épilon}=B*{u} và {sigma}=D*{epsilon} --> {sigma} = D * B * {u}
+            sx, sy, txy = self.element.mat.D @ (B @ u) #{sigma} = D * B * u, nó sẽ xuất ra sigma_x, sigma_y, tau_xy
+            vm = np.sqrt(sx**2 - sx*sy + sy**2 + 3*txy**2) #Von Mises hệ 2d học từ chvrbd
+            
+            sx_list.append(sx); sy_list.append(sy); txy_list.append(txy); vm_list.append(vm) 
 
-def compute_stress(mesh, element, U):
-    sx, sy, txy, vm = [], [], [], []
-    for e in mesh.elements:
-        coords = mesh.nodes[e]
-        dof=[]
-        for n in e:
-            dof += [2*n, 2*n+1]
-        u = U[dof]
+            # Ứng suất R-Theta
+            xc, yc = np.mean(coords, axis=0)    #Tính tọa độ tâm phần tử bằng cách lấy trung bình của các nút
+            r = np.hypot(xc, yc) #Bán kính từ gốc tọa độ đến tâm phần tử
+            theta = np.arctan2(yc, xc) #Góc
+            
+            #tính ứng suất hướng tâm và vòng quanh bằng cách chuyển đổi từ hệ Descartes sang hệ cực
+            c, s = np.cos(theta), np.sin(theta) #Descartes sang hệ cực
+            sr = sx*c**2 + sy*s**2 + 2*txy*s*c  #Ứng suất hướng tâm
+            st = sx*s**2 + sy*c**2 - 2*txy*s*c  #Ứng suất hướng vòng
+            
+            sr_list.append(sr); st_list.append(st)
+            r_list.append(r); theta_list.append(theta)
 
-        if len(e) == 4:
-            dN_dxi = np.array([[-0.25,-0.25],[0.25,-0.25],[0.25,0.25],[-0.25,0.25]])
-            J = dN_dxi.T @ coords
-            dN_dx = dN_dxi @ np.linalg.inv(J)
-            B = np.zeros((3,8))
-            for i in range(4):
-                B[0,2*i]=dN_dx[i,0]; B[1,2*i+1]=dN_dx[i,1]
-                B[2,2*i]=dN_dx[i,1]; B[2,2*i+1]=dN_dx[i,0]
-        else:
-            x1,y1=coords[0]; x2,y2=coords[1]; x3,y3=coords[2]
-            A=0.5*np.linalg.det([[1,x1,y1],[1,x2,y2],[1,x3,y3]])
-            b=[y2-y3,y3-y1,y1-y2]; c=[x3-x2,x1-x3,x2-x1]
-            B=(1/(2*A))*np.array([[b[0],0,b[1],0,b[2],0],
-                                  [0,c[0],0,c[1],0,c[2]],
-                                  [c[0],b[0],c[1],b[1],c[2],b[2]]])
-
-        stress = element.mat.D @ (B @ u)
-        sx.append(stress[0]); sy.append(stress[1]); txy.append(stress[2])
-        vm.append(np.sqrt(stress[0]**2 - stress[0]*stress[1] + stress[1]**2 + 3*stress[2]**2))
-
-    return np.array(sx), np.array(sy), np.array(txy), np.array(vm)
-
-def plot_all(mesh, U, element, scale=200, title="FEM Results"):
-   
-    fig, axs = plt.subplots(2, 3, figsize=(14, 8))
-    axs = axs.flatten()
-
-    for e in mesh.elements:
-        pts = mesh.nodes[e + [e[0]]]
-        axs[0].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5)
-    axs[0].set_title("Mesh"); axs[0].set_aspect('equal')
-
-    deformed = mesh.nodes.copy()
-    for i in range(len(mesh.nodes)):
-        deformed[i,0] += scale * U[2*i]
-        deformed[i,1] += scale * U[2*i+1]
-
-    for e in mesh.elements:
-        pts = deformed[e + [e[0]]]
-        axs[1].plot(pts[:,0], pts[:,1], 'r-')
-    axs[1].set_title("Deformation"); axs[1].set_aspect('equal')
-
-    sx, sy, txy, vm = compute_stress(mesh, element, U)
-    polys = [mesh.nodes[e] for e in mesh.elements]
-
-    def plot_field(ax, values, name):
-        pc = PolyCollection(polys, array=values)
-        ax.add_collection(pc)
-        ax.autoscale()
-        fig.colorbar(pc, ax=ax)
-        ax.set_title(name); ax.set_aspect('equal')
-
-    plot_field(axs[2], sx, "Sigma X")
-    plot_field(axs[3], sy, "Sigma Y")
-    plot_field(axs[4], txy, "Tau XY")
-    plot_field(axs[5], vm, "Von Mises")
-
-    plt.suptitle(title); plt.tight_layout(); plt.show()
-
-# =========================
-# ANALYTIC
-# =========================
-def lame(r, Ri, Ro, pi, po):
-    A = (pi*Ri**2 - po*Ro**2)/(Ro**2-Ri**2)
-    B = (Ri**2*Ro**2*(pi-po))/(Ro**2-Ri**2)
-    return A-B/r**2, A+B/r**2
+        cartesian_stress = (np.array(sx_list), np.array(sy_list), np.array(txy_list), np.array(vm_list))
+        polar_stress = (np.array(r_list), np.array(theta_list), np.array(sr_list), np.array(st_list))
+        
+        return cartesian_stress, polar_stress
