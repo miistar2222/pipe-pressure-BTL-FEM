@@ -2,10 +2,6 @@ import numpy as np
 
 class PostProcessor:
     def __init__(self, mesh, element, U):
-        """
-        Khởi tạo Bộ hậu xử lý với dữ liệu đầu vào.
-        Lưu trữ các dữ liệu này dưới dạng 'thuộc tính' (attributes) của class.
-        """
         self.mesh = mesh
         self.element = element
         self.U = U
@@ -57,7 +53,7 @@ class PostProcessor:
         sr_list, st_list = [], [] #Ứng suất hướng tâm và vòng quanh
         r_list, theta_list = [], []    #Bán kính và góc của tâm phần tử
 
-        for e in self.mesh.elements:    #lấy 3/4 nút trong 1 phần tử để nhét vô e
+        for e in self.mesh.elements:    #lấy 3 hoặc 4 nút trong 1 phần tử để nhét vô e
             coords = self.mesh.nodes[e] 
             dof = []    
             for n in e: dof += [2*n, 2*n+1] 
