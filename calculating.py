@@ -1,6 +1,9 @@
 import numpy as np
-
+# file này để tìm chuyển vị {U} từ ma trận độ cứng {K} và vct tải {F}
 #[K]{U}={F}
+# K: ma trận độ cứng tổng thể
+# U: vct chuyển vị
+# F: vct tải tổng thể
 class FEM_Solver:
     def __init__(self, mesh, element):
         self.mesh = mesh
@@ -12,6 +15,7 @@ class FEM_Solver:
         self.F = np.zeros(self.ndof)                #vct tải
         self.U = np.zeros(self.ndof)                #vct chuyển vị
 
+    #[k]
     def assemble(self):
         for e in self.mesh.elements:
             coords = self.mesh.nodes[e] 
@@ -29,7 +33,8 @@ class FEM_Solver:
         #print(ke)
         #print(self.K)
 
-    def apply_force(self, Ri, pi):
+    #[F]
+    def apply_force(self, Ri, pi): 
         #F=pi*L
         nodes_on_Ri = []
         #tìm các nút ở rìa trong
@@ -91,5 +96,5 @@ class FEM_Solver:
             # Đặt lực tại đó bằng 0
             self.F[dof] = 0
 
-        #Giải hệ phương trình
+        #{U} = inv({K}) * {F}
         self.U = np.linalg.solve(self.K, self.F)
