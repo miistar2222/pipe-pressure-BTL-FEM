@@ -9,9 +9,9 @@ class Q4:        #hàm dạng cho phần tử tứ giác
         D = self.mat.D              #lấy E và nu từ Material
         gauss = [-1/np.sqrt(3), 1/np.sqrt(3)]   #gauss bậc 2, tứ giác 4 điểm nên dùng gauss bậc 2
 
-        for xi in gauss:
+        for xi in gauss:                    #hàm dạng
             for eta in gauss:               #đạo hàm N_i theo e và n
-                dN_dxi = np.array([         #tọa độ của 4 nút
+                dN_dxi = np.array([              #tọa độ của 4 nút
                     [-(1-eta), -(1-xi)],    #e=-1; n=-1
                     [ (1-eta), -(1+xi)],    #e= 1; n=-1
                     [ (1+eta),  (1+xi)],    #e= 1; n= 1
@@ -30,8 +30,8 @@ class Q4:        #hàm dạng cho phần tử tứ giác
                     B[2,2*i]   = dN_dx[i,1]     #gamma_xy
                     B[2,2*i+1] = dN_dx[i,0]     #gamma_xy
 
-                Ke   +=   B.T @ D @ B * np.linalg.det(J)
-                #[K^e]=  [B]^T [D]  [B]  det(j)
+                Ke   +=   B.T @ D @ B * np.linalg.det(J) *1
+                #[K^e]=  [B]^T [D]  [B]     det(j)       t       
         return Ke
 
 class T3:
