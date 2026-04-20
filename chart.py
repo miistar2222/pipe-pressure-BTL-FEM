@@ -1,118 +1,108 @@
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.collections import PolyCollection
-from post import PostProcessor
+import matplotlib.pyplot as plt
+import matplotlib.tri as mtri
 
-def plot_contour(mesh, ax, values, title):
-    polys = [mesh.nodes[e] for e in mesh.elements]
-    pc = PolyCollection(polys, array=values, cmap='jet', edgecolor='none')
-    ax.add_collection(pc)
-    ax.autoscale()
-    plt.colorbar(pc, ax=ax)
-    ax.set_title(title)
-    ax.set_aspect('equal')
+def _get_triangulation(nodes, elements, elem_type):
+    """
+    Hàm phụ trợ (ẩn) để tạo lưới tam giác cho matplotlib.
+    Matplotlib vẽ contour tốt nhất trên lưới tam giác.
+    Nếu là Q4, hàm sẽ tự động chia 1 tứ giác thành 2 tam giác.
+    """
+    x = nodes[:, 0]
+    y = nodes[:, 1]
+    
+    if elem_type == "T3":
+        triangles = elements
+    elif elem_type == "Q4":
+        triangles = []
+        for el in elements:
+            # Chia tứ giác (0,1,2,3) thành 2 tam giác (0,1,2) và (0,2,3)
+            triangles.append([el[0], el[1], el[2]])
+            triangles.append([el[0], el[2], el[3]])
+        triangles = np.array(triangles)
+    else:
+        raise ValueError("Chỉ hỗ trợ element_type là 'T3' hoặc 'Q4'")
+        
+    return mtri.Triangulation(x, y, triangles)
 
-def plot_all(mesh, U, element, scale=200, title="FEM Results"):
-    post = PostProcessor(mesh, element, U)
-    ux, uy, _, _ = post.get_displacements()
-    cartesian_stress, polar_stress = post.get_element_stresses()
-    sx, sy, txy, vm = cartesian_stress
-    r, theta, sr, st = polar_stress
-    
-    fig, axs = plt.subplots(2, 4, figsize=(18, 8))
-    axs = axs.flatten()
-
-    # 1. Vẽ lưới ban đầu (Ô số 0)
-    for e in mesh.elements:
-        pts = mesh.nodes[e + [e[0]]]
-        axs[0].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5)
-    axs[0].set_title("Mesh")
-    axs[0].set_aspect('equal')
-
-    # 2. Vẽ LƯỚI BIẾN DẠNG chồng lên LƯỚI GỐC và MŨI TÊN (Ô số 1)
-    
-    # Bước A: Vẽ lưới gốc làm nền (màu đen, mờ alpha= độ mờ)
-    for e in mesh.elements:
-        pts = mesh.nodes[e + [e[0]]]
-        axs[1].plot(pts[:,0], pts[:,1], 'k-', linewidth=0.5, alpha=1)
-    
-    #chỗ này vẽ nó dell đẹp nên tao để vậy luôn
-    '''
-    # Bước B: Tính toán và vẽ lưới biến dạng (màu đỏ)
-    # Tọa độ mới = Tọa độ cũ + Chuyển vị * Hệ số phóng đại (scale)
-    deformed_nodes = mesh.nodes.copy()
-    deformed_nodes[:, 0] += ux * scale
-    deformed_nodes[:, 1] += uy * scale
-    
-    for e in mesh.elements:
-        pts = deformed_nodes[e + [e[0]]]
-        axs[1].plot(pts[:,0], pts[:,1], 'r-', linewidth=0.7)
-    '''
-    # Bước C: Vẽ Vector chuyển vị chuẩn hóa 
-    r_nodes = np.hypot(mesh.nodes[:, 0], mesh.nodes[:, 1])
-    Ri = np.min(r_nodes)
-    Ro = np.max(r_nodes)
-    
-    tol = 1e-5
-    inner_idx = np.where(np.abs(r_nodes - Ri) < tol)[0]
-    outer_idx = np.where(np.abs(r_nodes - Ro) < tol)[0]
-    
-    arrow_len = (Ro - Ri) * 0.25 
-    color_ri='red'; color_ro='red'
-    width=0.01; headwidth=3; headlength=5    
-
-    # Viền trong: pivot='tail' (đuôi chạm nút gốc)
-    x_in, y_in = mesh.nodes[inner_idx, 0], mesh.nodes[inner_idx, 1]
-    mag_in = np.hypot(ux[inner_idx], uy[inner_idx]) + 1e-12 
-    dx_in = (ux[inner_idx] / mag_in) * arrow_len
-    dy_in = (uy[inner_idx] / mag_in) * arrow_len
-    
-    axs[1].quiver(x_in, y_in, dx_in, dy_in, color=color_ri, angles='xy', scale_units='xy', scale=1, 
-                  width=width, headwidth=headwidth, headlength=headlength, pivot='tail', zorder=5)
-
-    # Viền ngoài: pivot='tip' (đầu chạm nút gốc)
-    x_out, y_out = mesh.nodes[outer_idx, 0], mesh.nodes[outer_idx, 1]
-    mag_out = np.hypot(ux[outer_idx], uy[outer_idx]) + 1e-12
-    dx_out = (ux[outer_idx] / mag_out) * arrow_len
-    dy_out = (uy[outer_idx] / mag_out) * arrow_len
-    
-    axs[1].quiver(x_out, y_out, dx_out, dy_out, color=color_ro, angles='xy', scale_units='xy', scale=1, 
-                  width=width, headwidth=headwidth, headlength=headlength, pivot='tip', zorder=5)
-    
-    axs[1].set_title(f"Deformed Overlay")
-    axs[1].set_aspect('equal')
-
-    # 3. Các biểu đồ ứng suất
-    plot_contour(mesh, axs[2], sx, r"$\sigma_x$")
-    plot_contour(mesh, axs[3], sy, r"$\sigma_y$")
-    plot_contour(mesh, axs[4], txy, r"$\tau_{xy}$")
-    plot_contour(mesh, axs[5], vm, r"Von Mises")
-    plot_contour(mesh, axs[6], sr, r"$\sigma_r$")
-    plot_contour(mesh, axs[7], st, r"$\sigma_{\theta}$")
-
-    plt.suptitle(title, fontsize=16)
-    plt.tight_layout()
+def plot_mesh(nodes, elements, title="Mô hình lưới FEM"):
+    """Xuất đồ thị mô hình lưới (Mesh)"""
+    plt.figure(figsize=(6, 6))
+    for el in elements:
+        polygon = np.append(el, el[0]) # Nối điểm cuối về điểm đầu để tạo vòng khép kín
+        x = nodes[polygon, 0]
+        y = nodes[polygon, 1]
+        plt.plot(x, y, 'k-', lw=0.8)
+        
+    plt.title(title)
+    plt.axis('equal')
     plt.show()
 
-# Hàm vẽ biểu đồ so sánh kết quả
-def plot_comparison(r_exact, sr_exact, st_exact, r_q4, sr_q4, st_q4, r_t3, sr_t3, st_t3, domain):
-    plt.figure(figsize=(10, 5))
+def plot_deformed_mesh(nodes, elements, U_full, scale=10.0, title="Lưới biến dạng (Deformed Mesh)"):
+    """Xuất đồ thị so sánh lưới ban đầu (mờ) và lưới sau biến dạng"""
+    plt.figure(figsize=(6, 6))
     
-    plt.subplot(1, 2, 1)
-    plt.plot(r_exact, sr_exact, 'k-', label="Calculus")
-    plt.scatter(r_q4, sr_q4, s=15, label=f"FEM ({domain}) - Q4")
-    plt.scatter(r_t3, sr_t3, s=15, marker='x', label=f"FEM ({domain}) - T3")
-    plt.xlabel("r (m)"); plt.ylabel("Ứng suất (Pa)")
-    plt.legend(); plt.title("Ứng suất hướng kính (\u03C3_r)")
-    plt.grid(True)
+    # 1. Vẽ lưới ban đầu (màu xám nhạt, nét đứt)
+    for el in elements:
+        polygon = np.append(el, el[0])
+        x = nodes[polygon, 0]
+        y = nodes[polygon, 1]
+        plt.plot(x, y, color='lightgray', linestyle='--', lw=0.8)
+        
+    # 2. Vẽ lưới biến dạng (màu xanh dương, nét liền)
+    # Phóng đại biến dạng lên 'scale' lần để dễ quan sát bằng mắt thường
+    nodes_def = np.copy(nodes)
+    nodes_def[:, 0] += U_full[0::2] * scale
+    nodes_def[:, 1] += U_full[1::2] * scale
+    
+    for el in elements:
+        polygon = np.append(el, el[0])
+        x = nodes_def[polygon, 0]
+        y = nodes_def[polygon, 1]
+        plt.plot(x, y, 'b-', lw=1.2)
+        
+    plt.title(f"{title} (Phóng đại: {scale}x)")
+    plt.axis('equal')
+    plt.show()
 
-    plt.subplot(1, 2, 2)
-    plt.plot(r_exact, st_exact, 'k-', label="Calculus (Exact)")
-    plt.scatter(r_q4, st_q4, s=15, label=f"FEM ({domain}) - Q4")
-    plt.scatter(r_t3, st_t3, s=15, marker='x', label=f"FEM ({domain}) - T3")
-    plt.xlabel("Bán kính r (m)"); plt.ylabel("Ứng suất (Pa)")
-    plt.legend(); plt.title("Ứng suất tiếp (\u03C3_\u03B8)")
-    plt.grid(True)
+def plot_contour(nodes, elements, values, elem_type, title="Contour kết quả", cmap='jet'):
+    """
+    Xuất đồ thị Contour (Bản đồ màu) cho Chuyển vị hoặc Ứng suất.
+    - values: mảng 1D chứa giá trị tại từng NÚT (ví dụ: U_x, U_r, hoặc Von Mises đã nội suy về nút)
+    """
+    triang = _get_triangulation(nodes, elements, elem_type)
+    
+    plt.figure(figsize=(8, 6))
+    # levels=20 nghĩa là chia thành 20 dải màu
+    contour = plt.tricontourf(triang, values, levels=20, cmap=cmap)
+    plt.colorbar(contour, label="Value")
+    plt.title(title)
+    plt.axis('equal')
+    plt.show()
 
-    plt.tight_layout()
+def plot_comparison(r_exact, val_exact, r_fem, val_fem, title="So sánh giải tích và FEM", ylabel="Giá trị"):
+    """Xuất đồ thị so sánh kết quả dọc theo bán kính r"""
+    plt.figure(figsize=(8, 5))
+    
+    # Đường giải tích (nét liền đỏ)
+    plt.plot(r_exact, val_exact, 'r-', linewidth=2, label='Giải tích (Exact)')
+    # Điểm FEM (Chấm xanh)
+    plt.plot(r_fem, val_fem, 'bo--', label='Phần tử hữu hạn (FEM)', markersize=5)
+    
+    plt.title(title)
+    plt.xlabel("Bán kính r (mm)")
+    plt.ylabel(ylabel)
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.show()
+
+def plot_convergence(mesh_sizes, errors, title="Khảo sát hội tụ (Convergence)"):
+    """Xuất đồ thị hội tụ lưới (Số lượng phần tử vs Sai số)"""
+    plt.figure(figsize=(8, 5))
+    plt.plot(mesh_sizes, errors, 'k-o', linewidth=2, markersize=8)
+    
+    plt.title(title)
+    plt.xlabel("Số lượng phần tử (N)")
+    plt.ylabel("Sai số tương đối (%)")
+    plt.grid(True, linestyle='--', alpha=0.7)
     plt.show()
