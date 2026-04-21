@@ -146,10 +146,16 @@ def plot_comparison_8_plots(results_T3, results_Q4, results_Ana):
 
     for i, key in enumerate(keys):
         ax = axes[i]
+        
+        # --- THÊM DÒNG NÀY ---
+        # Chọn đúng mảng bán kính: 'r_u' cho chuyển vị (nút), 'r' cho ứng suất (phần tử)
+        x_key = 'r_u' if key == 'ur' else 'r'
+        
+        # Sửa lại 'r' thành x_key ở các dòng vẽ
         # Vẽ T3
-        ax.scatter(results_T3['r'], results_T3[key], color='red', s=15, label='T3', alpha=0.6)
+        ax.scatter(results_T3[x_key], results_T3[key], color='red', s=15, label='T3', alpha=0.6)
         # Vẽ Q4
-        ax.scatter(results_Q4['r'], results_Q4[key], color='blue', s=15, label='Q4', alpha=0.6)
+        ax.scatter(results_Q4[x_key], results_Q4[key], color='blue', s=15, label='Q4', alpha=0.6)
         
         # Vẽ Giải tích (nếu có)
         if key in results_Ana:
