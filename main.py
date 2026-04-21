@@ -133,68 +133,52 @@ class FEMApp:
         self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
     def run_convergence_analysis(self, d):
-            # Ns tương ứng với danh sách số phần tử trên bề dày
-            n_list  = [5, 10, 15, 20] 
-            err_Q4, err_T3 = [], []
+        n_list = [5, 10, 15, 20]
+        err_Q4, err_T3 = [], []
 
-            # Khởi tạo nghiệm giải tích
-            ana = Analytical(d['Ri'], d['Ro'], d['E'], d['nu'], d['pi'], d['po'])
-            # Nghiệm đúng ur tại biên trong (Ri)
-            ur_exact_val = ana.get_radial_displacement(d['Ri'])
+        ana = Analytical(d['Ri'], d['Ro'], d['E'], d['nu'], d['pi'], d['po'])
+        ur_exact_val = ana.get_radial_displacement(d['Ri'])
 
-            for n in n_list:
-                # --- 1. Tính toán cho Q4 ---
-                mQ = mesh(d['Ri'], d['Ro'], n, n*2, "Q4")
-                elemQ = Q4(material(d['E'], d['nu']))
-                solQ = FEM_Solver(mQ, elemQ)
-                solQ.assemble()
-                solQ.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
-                solQ.solve()
-                
-                # Lấy chuyển vị ur từ kết quả FEM
-                _, _, urQ_all, _ = get_displacements(mQ, solQ.U)
-                
-                # Tìm index các nút nằm trên biên trong (r = Ri) giống 'find' trong MATLAB
-                idx_in_Q = [i for i, (x, y) in enumerate(mQ.nodes) 
-                            if abs(np.hypot(x, y) - d['Ri']) < 1e-5]
-                
-                # Tính sai số trung bình (%) tại biên trong
-                e_Q = np.mean(np.abs(urQ_all[idx_in_Q] - ur_exact_val) / np.abs(ur_exact_val)) * 100
-                err_Q4.append(e_Q)
+        for n in n_list:
+            nt = n * 5                    # tăng nt để cả Q4 và T3 hội tụ mượt
 
+            # ==================== Q4 ====================
+            mQ = mesh(d['Ri'], d['Ro'], n, nt, "Q4")
+            elemQ = Q4(material(d['E'], d['nu']))
+            solQ = FEM_Solver(mQ, elemQ)
+            solQ.assemble()
+            solQ.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
+            solQ.solve()
 
-                # --- 2. Tính toán cho T3 ---
-                mT = mesh(d['Ri'], d['Ro'], n, n*2, "T3")
-                elemT = T3(material(d['E'], d['nu']))
-                solT = FEM_Solver(mT, elemT)
-                solT.assemble()
-                solT.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
-                solT.solve()
-                
-                # Lấy chuyển vị ur từ kết quả FEM
-                _, _, urT_all, _ = get_displacements(mT, solT.U)
-                
-                # Tìm index các nút nằm trên biên trong (r = Ri)
-                idx_in_T = [i for i, (x, y) in enumerate(mT.nodes) 
-                            if abs(np.hypot(x, y) - d['Ri']) < 1e-5]
-                
-                # Tính sai số trung bình (%) tại biên trong
-                e_T = np.mean(np.abs(urT_all[idx_in_T] - ur_exact_val) / np.abs(ur_exact_val)) * 100
-                err_T3.append(e_T)
+            _, _, urQ_all, _ = get_displacements(mQ, solQ.U)
+            idx_in_Q = [i for i, (x, y) in enumerate(mQ.nodes) 
+                        if abs(np.hypot(x, y) - d['Ri']) < 1e-5]
+            e_Q = np.mean(np.abs(urQ_all[idx_in_Q] - ur_exact_val) / np.abs(ur_exact_val)) * 100
+            err_Q4.append(e_Q)
 
-            # Xóa canvas cũ và vẽ đồ thị hội tụ mới
-            if self.canvas: self.canvas.get_tk_widget().destroy()
-            
-            # Bạn cần cập nhật hàm plot_convergence trong plotter.py để nhận 2 mảng err này
-            fig = plotter.plot_convergence_simple(n_list, err_Q4, err_T3)
-            
-            self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
-            self.canvas.draw()
-            self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
+            # ==================== T3 ====================
+            mT = mesh(d['Ri'], d['Ro'], n, nt, "T3")
+            elemT = T3(material(d['E'], d['nu']))
+            solT = FEM_Solver(mT, elemT)
+            solT.assemble()
+            solT.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
+            solT.solve()
 
+            _, _, urT_all, _ = get_displacements(mT, solT.U)
+            idx_in_T = [i for i, (x, y) in enumerate(mT.nodes) 
+                        if abs(np.hypot(x, y) - d['Ri']) < 1e-5]
+            e_T = np.mean(np.abs(urT_all[idx_in_T] - ur_exact_val) / np.abs(ur_exact_val)) * 100
+            err_T3.append(e_T)
 
-
-
+        # Vẽ đồ thị
+        if self.canvas:
+            self.canvas.get_tk_widget().destroy()
+        
+        fig = plotter.plot_convergence_simple(n_list, err_Q4, err_T3)
+        
+        self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
 if __name__ == "__main__":
     root = tk.Tk()

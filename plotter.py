@@ -112,3 +112,15 @@ def plot_convergence_ur(n_list, ur_Q4, ur_T3, ur_exact):
     ax.legend()
     ax.grid(True)
     return fig
+
+def plot_convergence_simple(n_list, err_Q4, err_T3):
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.plot(n_list, err_Q4, '-ob', label='Q4 (Tứ giác)', linewidth=2)
+    ax.plot(n_list, err_T3, '-sr', label='T3 (Tam giác)', linewidth=2)
+    
+    ax.set_title('Sai số chuyển vị $u_r$ (%)')
+    ax.set_xlabel('Số phần tử theo bán kính (n)')
+    ax.set_ylabel('Sai số (%)')
+    ax.legend()
+    ax.grid(True)
+    return fig

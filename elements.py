@@ -34,7 +34,7 @@ class Q4:        #hàm dạng cho phần tử tứ giác
                     B[2,2*i]   = dN_dx[i,1]     #gamma_xy
                     B[2,2*i+1] = dN_dx[i,0]     #gamma_xy
 
-                Ke   +=   B.T @ D @ B * np.abs(detJ) *1
+                Ke   +=   B.T @ D @ B * np.abs(np.linalg.det(J)) *1
                 #[K^e]=  [B]^T [D]  [B]     det(j)       t       
         return Ke
 
