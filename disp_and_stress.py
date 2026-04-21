@@ -20,7 +20,8 @@ def get_displacements(mesh, U):
 def get_element_stresses(mesh, element, U):
     #Tính ứng suất hệ Descartes, Cực và Von Mises tại tâm phần tử
     # Các list lưu trữ kết quả
-    sx_list, sy_list, txy_list, vm_list = [], [], [], []
+    sx_list, sy_list, sz_list, txy_list, = [], [], [], []
+    vm_list = []
     sr_list, st_list, r_list, theta_list = [], [], [], []
 
     for e in mesh.elements:
@@ -54,7 +55,8 @@ def get_element_stresses(mesh, element, U):
         sz = element.mat.nu * (sx + sy)
         vm = np.sqrt(sx**2 + sy**2 + sz**2 - sx*sy - sy*sz - sz*sx + 3*txy**2)
         
-        sx_list.append(sx); sy_list.append(sy); txy_list.append(txy); vm_list.append(vm) 
+        sx_list.append(sx); sy_list.append(sy); sz_list.append(sz); txy_list.append(txy); 
+        vm_list.append(vm) 
 
         # Tọa độ tâm phần tử
         xc, yc = np.mean(coords, axis=0)
@@ -69,7 +71,7 @@ def get_element_stresses(mesh, element, U):
         sr_list.append(sr); st_list.append(st)
         r_list.append(r); theta_list.append(theta)
 
-    cartesian_stress = (np.array(sx_list), np.array(sy_list), np.array(txy_list), np.array(vm_list))
+    cartesian_stress = (np.array(sx_list), np.array(sy_list), np.array(sz_list), np.array(txy_list), np.array(vm_list))
     polar_stress = (np.array(r_list), np.array(theta_list), np.array(sr_list), np.array(st_list))
     
     return cartesian_stress, polar_stress

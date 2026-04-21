@@ -118,12 +118,12 @@ class FEMApp:
             fig = plotter.plot_deformation(m, solver.U, d['Scale'])
         
         elif mode == "stress":
-            # GỌI HÀM MỚI: Hiển thị 5 đồ thị cùng lúc
+            # GỌI HÀM MỚI: Hiển thị đồ thị
             fig = plotter.plot_stress_all(m, cart_s, polar_s)
             
         elif mode == "vm":
             # Hiển thị riêng Von Mises khổ lớn
-            fig = plotter.plot_contour(m, cart_s[3], "Ứng suất Von Mises (Pa)")
+            fig = plotter.plot_contour(m, cart_s[4], "Ứng suất Von Mises (Pa)")
             
         elif mode == "conv":
             # Logic khảo sát hội tụ
