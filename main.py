@@ -3,7 +3,6 @@ from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 
-# Import các module
 from material import material
 from elements import Q4, T3
 from mesh import mesh
@@ -15,116 +14,187 @@ import plotter
 class FEMApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Giao diện giải bài toán FEM 2D - Trụ rỗng")
-        self.root.geometry("1100x700")
+        self.root.title("Phần mềm FEM - Trụ rỗng 2D (Plane Strain)")
+        self.root.geometry("1400x900")
+        self.canvas = None
         self.create_widgets()
 
     def create_widgets(self):
-        input_frame = tk.LabelFrame(self.root, text="Thông số đầu vào", padx=10, pady=10)
-        input_frame.pack(side=tk.LEFT, fill=tk.Y, padx=10, pady=10)
+        # --- Cột bên trái: Nhập liệu ---
+        left_frame = tk.Frame(self.root, padx=10, pady=10)
+        left_frame.pack(side=tk.LEFT, fill=tk.Y)
 
-        # 1. Hình học & Lưới
-        tk.Label(input_frame, text="Hình học & Lưới", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=4, pady=5, sticky="w")
-        tk.Label(input_frame, text="Bán kính trong (Ri):").grid(row=1, column=0, sticky="e")
-        self.ent_ri = tk.Entry(input_frame, width=10); self.ent_ri.insert(0, "10.0")
-        self.ent_ri.grid(row=1, column=1)
+        # Nhóm 1: Thông số đầu vào
+        input_box = tk.LabelFrame(left_frame, text="Thông số đầu vào", padx=10, pady=10)
+        input_box.pack(fill=tk.X)
 
-        tk.Label(input_frame, text="Bán kính ngoài (Ro):").grid(row=2, column=0, sticky="e")
-        self.ent_ro = tk.Entry(input_frame, width=10); self.ent_ro.insert(0, "20.0")
-        self.ent_ro.grid(row=2, column=1)
+        self.inputs = {}
+        fields = [
+            ("Ri (Bán kính trong)", "10"), 
+            ("Ro (Bán kính ngoài)", "20"), 
+            ("nr (Số lớp phần tử r)", "12"), 
+            ("nt (Số lớp phần tử theta)", "20"), 
+            ("E (Modun đàn hồi)", "2e11"), 
+            ("nu (Hệ số Poisson)", "0.3"),
+            ("pi (Áp suất trong)", "1e8"),
+            ("po (Áp suất ngoài)", "0"),
+            ("Scale (Phóng đại biến dạng)", "100")
+        ]
 
-        tk.Label(input_frame, text="Số điểm chia (nr):").grid(row=3, column=0, sticky="e")
-        self.ent_nr = tk.Entry(input_frame, width=10); self.ent_nr.insert(0, "10")
-        self.ent_nr.grid(row=3, column=1)
+        for i, (label, default) in enumerate(fields):
+            tk.Label(input_box, text=label).grid(row=i, column=0, sticky="w")
+            ent = tk.Entry(input_box, width=15)
+            ent.insert(0, default)
+            ent.grid(row=i, column=1, pady=2)
+            # Lưu key theo tên ngắn gọn để dễ lấy data
+            key = label.split(" ")[0]
+            self.inputs[key] = ent
 
-        tk.Label(input_frame, text="Số điểm chia (nt):").grid(row=4, column=0, sticky="e")
-        self.ent_nt = tk.Entry(input_frame, width=10); self.ent_nt.insert(0, "15")
-        self.ent_nt.grid(row=4, column=1)
+        # Nhóm 2: Lựa chọn phần tử
+        elem_box = tk.LabelFrame(left_frame, text="Loại phần tử", padx=10, pady=5)
+        elem_box.pack(fill=tk.X, pady=10)
+        self.cb_elem = ttk.Combobox(elem_box, values=["Q4", "T3"], state="readonly")
+        self.cb_elem.current(0)
+        self.cb_elem.pack()
 
-        # 2. Vật liệu & Tải
-        tk.Label(input_frame, text="Vật liệu & Tải", font=("Arial", 10, "bold")).grid(row=5, column=0, columnspan=4, pady=(15,5), sticky="w")
-        tk.Label(input_frame, text="Mô đun E:").grid(row=6, column=0, sticky="e")
-        self.ent_e = tk.Entry(input_frame, width=10); self.ent_e.insert(0, "2e11")
-        self.ent_e.grid(row=6, column=1)
+        # Nhóm 3: Các nút chức năng
+        btn_box = tk.LabelFrame(left_frame, text="Điều khiển", padx=10, pady=10)
+        btn_box.pack(fill=tk.X)
 
-        tk.Label(input_frame, text="Hệ số Poisson:").grid(row=7, column=0, sticky="e")
-        self.ent_nu = tk.Entry(input_frame, width=10); self.ent_nu.insert(0, "0.3")
-        self.ent_nu.grid(row=7, column=1)
+        tk.Button(btn_box, text="1. BIẾN DẠNG", command=lambda: self.run("disp"), 
+                  bg="#e1f5fe", width=20).pack(pady=5)
+        
+        # Nút Ứng suất - Sẽ show toàn bộ đồ thị
+        tk.Button(btn_box, text="2. ỨNG SUẤT (ALL)", command=lambda: self.run("stress"), 
+                  bg="#fff9c4", width=20).pack(pady=5)
+        
+        tk.Button(btn_box, text="3. VON MISES", command=lambda: self.run("vm"), 
+                  bg="#f1f8e9", width=20).pack(pady=5)
+        
+        tk.Button(btn_box, text="4. KHẢO SÁT HỘI TỤ", command=lambda: self.run("conv"), 
+                  bg="#fce4ec", width=20).pack(pady=5)
 
-        tk.Label(input_frame, text="Áp suất (pi):").grid(row=8, column=0, sticky="e")
-        self.ent_pi = tk.Entry(input_frame, width=10); self.ent_pi.insert(0, "1e7")
-        self.ent_pi.grid(row=8, column=1)
-
-        tk.Label(input_frame, text="Áp suất (po):").grid(row=8, column=2, sticky="e", padx=(10,0))
-        self.ent_po = tk.Entry(input_frame, width=10); self.ent_po.insert(0, "0.0")
-        self.ent_po.grid(row=8, column=3) 
-
-        # 3. Chế độ
-        tk.Label(input_frame, text="Cấu hình mô phỏng", font=("Arial", 10, "bold")).grid(row=9, column=0, columnspan=4, pady=(15,5), sticky="w")
-        tk.Label(input_frame, text="Loại phần tử:").grid(row=10, column=0, sticky="e")
-        self.cb_element = ttk.Combobox(input_frame, values=["Q4", "T3"], width=7, state="readonly")
-        self.cb_element.current(0); self.cb_element.grid(row=10, column=1)
-
-        tk.Label(input_frame, text="Mô hình:").grid(row=11, column=0, sticky="e")
-        self.cb_mode = ttk.Combobox(input_frame, values=["quarter", "full"], width=7, state="readonly")
-        self.cb_mode.current(0); self.cb_mode.grid(row=11, column=1)
-
-        tk.Label(input_frame, text="Scale biến dạng:").grid(row=12, column=0, sticky="e")
-        self.ent_scale = tk.Entry(input_frame, width=10); self.ent_scale.insert(0, "100")
-        self.ent_scale.grid(row=12, column=1)
-
-        # CÁC NÚT NHẤN
-        self.btn_solve = tk.Button(input_frame, text="Giải & Vẽ Biến Dạng", bg="#4CAF50", fg="white", font=("Arial", 10, "bold"), command=lambda: self.run_simulation("deform"))
-        self.btn_solve.grid(row=13, column=0, columnspan=4, pady=(20, 5), ipadx=10, ipady=5, sticky="we")
-
-        # NÚT SO SÁNH SAI SỐ
-        self.btn_error = tk.Button(input_frame, text="Tính % Sai Số (Chuyển vị & Ứng suất)", bg="#ff9800", fg="white", font=("Arial", 10, "bold"), command=lambda: self.run_simulation("error"))
-        self.btn_error.grid(row=14, column=0, columnspan=4, pady=5, ipadx=10, ipady=5, sticky="we")
-
+        # --- Cột bên phải: Hiển thị đồ thị ---
         self.plot_frame = tk.Frame(self.root, bg="white")
-        self.plot_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
-        self.canvas = None
+        self.plot_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
 
-    def run_simulation(self, action="deform"):
+    def get_data(self):
         try:
-            Ri, Ro = float(self.ent_ri.get()), float(self.ent_ro.get())
-            nr, nt = int(self.ent_nr.get()), int(self.ent_nt.get())
-            E, nu = float(self.ent_e.get()), float(self.ent_nu.get())
-            pi, po = float(self.ent_pi.get()), float(self.ent_po.get())
-            elem_type, sim_mode = self.cb_element.get(), self.cb_mode.get()
-            scale = float(self.ent_scale.get())
+            return {k: float(v.get()) for k, v in self.inputs.items()}
+        except ValueError:
+            messagebox.showerror("Lỗi", "Vui lòng nhập đúng định dạng số")
+            return None
 
-            mat = material(E, nu)
-            elem = Q4(mat) if elem_type == "Q4" else T3(mat)
-            m = mesh(Ri, Ro, nr, nt, elem_type, sim_mode)
+    def run(self, mode):
+        d = self.get_data()
+        if not d: return
+
+        etype = self.cb_elem.get()
+        
+        # 1. Khởi tạo đối tượng
+        mat = material(d['E'], d['nu'])
+        elem = Q4(mat) if etype == "Q4" else T3(mat)
+        m = mesh(d['Ri'], d['Ro'], int(d['nr']), int(d['nt']), etype)
+        
+        # 2. Giải bài toán FEM
+        solver = FEM_Solver(m, elem)
+        solver.assemble()
+        solver.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
+        solver.solve()
+
+        # 3. Hậu xử lý
+        ux, uy, ur, ut = get_displacements(m, solver.U)
+        cart_s, polar_s = get_element_stresses(m, elem, solver.U)
+        
+        # Xóa đồ thị cũ
+        if self.canvas:
+            self.canvas.get_tk_widget().destroy()
+
+        # 4. Hiển thị dựa trên chế độ chọn
+        if mode == "disp":
+            fig = plotter.plot_deformation(m, solver.U, d['Scale'])
+        
+        elif mode == "stress":
+            # GỌI HÀM MỚI: Hiển thị 6 đồ thị cùng lúc
+            fig = plotter.plot_stress_all(m, cart_s, polar_s)
             
-            solver = FEM_Solver(m, elem)
-            solver.apply_force(Ri, Ro, pi, po)
-            solver.solve()
+        elif mode == "vm":
+            # Hiển thị riêng Von Mises khổ lớn
+            fig = plotter.plot_contour(m, cart_s[3], "Ứng suất Von Mises (Pa)")
+            
+        elif mode == "conv":
+            # Logic khảo sát hội tụ
+            self.run_convergence_analysis(d)
+            return
 
-            ux, uy, ur_fem, utheta = get_displacements(m, solver.U)
-            cart_stress, polar_stress = get_element_stresses(m, elem, solver.U)
+        # Nhúng vào GUI
+        self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
-            if self.canvas:
-                self.canvas.get_tk_widget().destroy()
+    def run_convergence_analysis(self, d):
+            # Ns tương ứng với danh sách số phần tử trên bề dày
+            n_list  = [5, 10, 15, 20] 
+            err_Q4, err_T3 = [], []
 
-            if action == "deform":
-                stresses_vm = cart_stress[3]
-                fig = plotter.plot_results(m, solver.U, stresses_vm, scale)
-            elif action == "error":
-                ana_solver = Analytical(Ri, Ro, E, nu, pi, po)
-                r_nodes = np.hypot(m.nodes[:, 0], m.nodes[:, 1])
-                r_elems, _, sr_fem, st_fem = polar_stress 
+            # Khởi tạo nghiệm giải tích
+            ana = Analytical(d['Ri'], d['Ro'], d['E'], d['nu'], d['pi'], d['po'])
+            # Nghiệm đúng ur tại biên trong (Ri)
+            ur_exact_val = ana.get_radial_displacement(d['Ri'])
+
+            for n in n_list:
+                # --- 1. Tính toán cho Q4 ---
+                mQ = mesh(d['Ri'], d['Ro'], n, n*2, "Q4")
+                elemQ = Q4(material(d['E'], d['nu']))
+                solQ = FEM_Solver(mQ, elemQ)
+                solQ.assemble()
+                solQ.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
+                solQ.solve()
                 
-                # Gọi hàm vẽ % sai số
-                fig = plotter.plot_error_comparison(r_nodes, ur_fem, r_elems, sr_fem, st_fem, ana_solver)
+                # Lấy chuyển vị ur từ kết quả FEM
+                _, _, urQ_all, _ = get_displacements(mQ, solQ.U)
                 
+                # Tìm index các nút nằm trên biên trong (r = Ri) giống 'find' trong MATLAB
+                idx_in_Q = [i for i, (x, y) in enumerate(mQ.nodes) 
+                            if abs(np.hypot(x, y) - d['Ri']) < 1e-5]
+                
+                # Tính sai số trung bình (%) tại biên trong
+                e_Q = np.mean(np.abs(urQ_all[idx_in_Q] - ur_exact_val) / np.abs(ur_exact_val)) * 100
+                err_Q4.append(e_Q)
+
+
+                # --- 2. Tính toán cho T3 ---
+                mT = mesh(d['Ri'], d['Ro'], n, n*2, "T3")
+                elemT = T3(material(d['E'], d['nu']))
+                solT = FEM_Solver(mT, elemT)
+                solT.assemble()
+                solT.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
+                solT.solve()
+                
+                # Lấy chuyển vị ur từ kết quả FEM
+                _, _, urT_all, _ = get_displacements(mT, solT.U)
+                
+                # Tìm index các nút nằm trên biên trong (r = Ri)
+                idx_in_T = [i for i, (x, y) in enumerate(mT.nodes) 
+                            if abs(np.hypot(x, y) - d['Ri']) < 1e-5]
+                
+                # Tính sai số trung bình (%) tại biên trong
+                e_T = np.mean(np.abs(urT_all[idx_in_T] - ur_exact_val) / np.abs(ur_exact_val)) * 100
+                err_T3.append(e_T)
+
+            # Xóa canvas cũ và vẽ đồ thị hội tụ mới
+            if self.canvas: self.canvas.get_tk_widget().destroy()
+            
+            # Bạn cần cập nhật hàm plot_convergence trong plotter.py để nhận 2 mảng err này
+            fig = plotter.plot_convergence_simple(n_list, err_Q4, err_T3)
+            
             self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
             self.canvas.draw()
-            self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
-        except Exception as e:
-            messagebox.showerror("Lỗi thực thi", f"Có lỗi: {str(e)}")
+
+
+
 
 if __name__ == "__main__":
     root = tk.Tk()

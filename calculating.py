@@ -35,9 +35,6 @@ class FEM_Solver:
             sorted_indices = np.argsort(angles)
             nodes_on_boundary = [nodes_on_boundary[i] for i in sorted_indices]
 
-            if self.mesh.mode == "full":
-                nodes_on_boundary.append(nodes_on_boundary[0])
-
             for i in range(len(nodes_on_boundary)-1):
                 n1 = nodes_on_boundary[i]
                 n2 = nodes_on_boundary[i+1]
@@ -64,7 +61,7 @@ class FEM_Solver:
         apply_pressure_to_boundary(Ro, -po)
 
     def solve(self):
-        self.assemble()
+        #self.assemble()
         fixed_dofs = []
         
         for i, (x, y) in enumerate(self.mesh.nodes):

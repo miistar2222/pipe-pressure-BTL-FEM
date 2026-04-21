@@ -7,7 +7,7 @@ class Analytical:
         self.E = E
         self.nu = nu
         self.pi = pi
-        self.po = po 
+        self.po = po
 
     def get_radial_displacement(self, r):
         r = np.where(r == 0, 1e-10, r)

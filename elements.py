@@ -19,7 +19,11 @@ class Q4:        #hàm dạng cho phần tử tứ giác
                 ]) / 4                      
 
                 J = dN_dxi.T @ coords       #ma trận jacobian (2x2): lấy chuyển vị (2x4) x tọa độ coords (4x2)
+                detJ = np.linalg.det(J)
                 dN_dx = dN_dxi @ np.linalg.inv(J)   #tính biến dạng bằng đạo hàm
+
+                if detJ < 0:
+                    dN_dx = -dN_dx
 
                 B = np.zeros((3,8)) #ma trận biến dạng - chuyển vị   sắp đạo hàm về đúng vị tri để nhân với vct chuyển vị
                 for i in range(4):  #0: biến dạng dọc trục X
@@ -30,7 +34,7 @@ class Q4:        #hàm dạng cho phần tử tứ giác
                     B[2,2*i]   = dN_dx[i,1]     #gamma_xy
                     B[2,2*i+1] = dN_dx[i,0]     #gamma_xy
 
-                Ke   +=   B.T @ D @ B * np.linalg.det(J) *1
+                Ke   +=   B.T @ D @ B * np.abs(detJ) *1
                 #[K^e]=  [B]^T [D]  [B]     det(j)       t       
         return Ke
 
@@ -55,4 +59,4 @@ class T3:
             [c[0],  b[0],   c[1],   b[1],   c[2],   b[2]]
         ])
 
-        return B.T @ self.mat.D @ B * A * 2
+        return B.T @ self.mat.D @ B * abs(A)
