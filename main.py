@@ -61,21 +61,24 @@ class FEMApp:
         btn_box = tk.LabelFrame(left_frame, text="Điều khiển", padx=10, pady=10)
         btn_box.pack(fill=tk.X)
 
-        tk.Button(btn_box, text="1. BIẾN DẠNG", command=lambda: self.run("disp"), 
+        tk.Button(btn_box, text="CHUYỂN VỊ BIẾN DẠNG", command=lambda: self.run("disp"), 
                   bg="#e1f5fe", width=20).pack(pady=5)
         
         # Nút Ứng suất - Sẽ show toàn bộ đồ thị
-        tk.Button(btn_box, text="2. ỨNG SUẤT (ALL)", command=lambda: self.run("stress"), 
+        tk.Button(btn_box, text="ỨNG SUẤT", command=lambda: self.run("stress"), 
                   bg="#fff9c4", width=20).pack(pady=5)
         
-        tk.Button(btn_box, text="3. VON MISES", command=lambda: self.run("vm"), 
+        tk.Button(btn_box, text="VON MISES", command=lambda: self.run("vm"), 
                   bg="#f1f8e9", width=20).pack(pady=5)
         
-        tk.Button(btn_box, text="4. KHẢO SÁT HỘI TỤ", command=lambda: self.run("conv"), 
+        tk.Button(btn_box, text="KHẢO SÁT HỘI TỤ", command=lambda: self.run("conv"), 
                   bg="#fce4ec", width=20).pack(pady=5)
 
+        tk.Button(btn_box, text="SO SÁNH", command=lambda: self.run("compare"), 
+                  bg="#d1c4e9", width=20).pack(pady=5)
+
         # --- Cột bên phải: Hiển thị đồ thị ---
-        self.plot_frame = tk.Frame(self.root, bg="white")
+        self.plot_frame = tk.Frame(self.root, bg="GREY")
         self.plot_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
 
     def get_data(self):
@@ -115,7 +118,7 @@ class FEMApp:
             fig = plotter.plot_deformation(m, solver.U, d['Scale'])
         
         elif mode == "stress":
-            # GỌI HÀM MỚI: Hiển thị 6 đồ thị cùng lúc
+            # GỌI HÀM MỚI: Hiển thị 5 đồ thị cùng lúc
             fig = plotter.plot_stress_all(m, cart_s, polar_s)
             
         elif mode == "vm":
@@ -127,12 +130,17 @@ class FEMApp:
             self.run_convergence_analysis(d)
             return
 
+        elif mode == "compare":
+            self.run_compare_analysis(d)
+            return
+
         # Nhúng vào GUI
         self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
-    def run_convergence_analysis(self, d):
+    def run_convergence_analysis(self, d): 
+        # Chế độ khảo sát hội tụ
         n_list = [5, 10, 15, 20]
         err_Q4, err_T3 = [], []
 
@@ -175,6 +183,64 @@ class FEMApp:
             self.canvas.get_tk_widget().destroy()
         
         fig = plotter.plot_convergence_simple(n_list, err_Q4, err_T3)
+        
+        self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
+    
+    def run_compare_analysis(self, d):
+        # 1. Giải bài toán với lưới T3
+        mT = mesh(d['Ri'], d['Ro'], int(d['nr']), int(d['nt']), "T3")
+        elemT = T3(material(d['E'], d['nu']))
+        solT = FEM_Solver(mT, elemT)
+        solT.assemble()
+        solT.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
+        solT.solve()
+        
+        _, _, urT_all, _ = get_displacements(mT, solT.U)
+        _, polar_sT = get_element_stresses(mT, elemT, solT.U)
+        r_elem_T, _, _, st_T = polar_sT # Lấy bán kính r và ứng suất sigma_theta
+
+        # 2. Giải bài toán với lưới Q4
+        mQ = mesh(d['Ri'], d['Ro'], int(d['nr']), int(d['nt']), "Q4")
+        elemQ = Q4(material(d['E'], d['nu']))
+        solQ = FEM_Solver(mQ, elemQ)
+        solQ.assemble()
+        solQ.apply_force(d['Ri'], d['Ro'], d['pi'], d['po'])
+        solQ.solve()
+        
+        _, _, urQ_all, _ = get_displacements(mQ, solQ.U)
+        _, polar_sQ = get_element_stresses(mQ, elemQ, solQ.U)
+        r_elem_Q, _, _, st_Q = polar_sQ 
+
+        # Lọc lấy các nút nằm trên trục x (y ≈ 0) để vẽ chuyển vị dọc theo r
+        def get_ur_along_r(m, ur):
+            r_vals, ur_vals = [], []
+            for i, (x, y) in enumerate(m.nodes):
+                if abs(y) < 1e-5: # Nằm trên trục x
+                    r_vals.append(x)
+                    ur_vals.append(ur[i])
+            # Sắp xếp lại theo r tăng dần
+            sorted_idx = np.argsort(r_vals)
+            return np.array(r_vals)[sorted_idx], np.array(ur_vals)[sorted_idx]
+
+        r_nT, ur_nT = get_ur_along_r(mT, urT_all)
+        r_nQ, ur_nQ = get_ur_along_r(mQ, urQ_all)
+
+        # 3. Tính toán nghiệm Giải tích (Analytical)
+        ana = Analytical(d['Ri'], d['Ro'], d['E'], d['nu'], d['pi'], d['po'])
+        r_ana = np.linspace(d['Ri'], d['Ro'], 100)
+        ur_ana = ana.get_radial_displacement(r_ana)
+        _, st_ana = ana.get_stresses(r_ana) # Lấy ứng suất sigma_theta
+
+        # 4. Xóa đồ thị cũ và vẽ biểu đồ so sánh
+        if self.canvas:
+            self.canvas.get_tk_widget().destroy()
+        
+        fig = plotter.plot_comparison(
+            r_nT, ur_nT, r_nQ, ur_nQ, r_ana, ur_ana,
+            r_elem_T, st_T, r_elem_Q, st_Q, r_ana, st_ana
+        )
         
         self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
         self.canvas.draw()

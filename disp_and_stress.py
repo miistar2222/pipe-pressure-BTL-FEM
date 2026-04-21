@@ -51,7 +51,8 @@ def get_element_stresses(mesh, element, U):
         # --- Tính toán Ứng suất ---
         # {sigma} = D * B * {u}
         sx, sy, txy = element.mat.D @ (B @ u_elem)
-        vm = np.sqrt(sx**2 - sx*sy + sy**2 + 3*txy**2)
+        sz = element.mat.nu * (sx + sy)
+        vm = np.sqrt(sx**2 + sy**2 + sz**2 - sx*sy - sy*sz - sz*sx + 3*txy**2)
         
         sx_list.append(sx); sy_list.append(sy); txy_list.append(txy); vm_list.append(vm) 
 
