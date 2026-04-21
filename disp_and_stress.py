@@ -34,7 +34,7 @@ def get_element_stresses(mesh, element, U):
         if len(coords) == 4: # Q4
             dN_dxi = np.array([[-0.25,-0.25],[0.25,-0.25],[0.25,0.25],[-0.25,0.25]])
             J = dN_dxi.T @ coords
-            dN_dx = dN_dxi @ np.linalg.inv(J)
+            dN_dx = dN_dxi @ np.linalg.inv(J).T
             B = np.zeros((3,8))
             for i in range(4):
                 B[0,2*i] = dN_dx[i,0]; B[1,2*i+1] = dN_dx[i,1]

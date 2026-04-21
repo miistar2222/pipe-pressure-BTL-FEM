@@ -8,7 +8,7 @@ class Q4:        #hàm dạng cho phần tử tứ giác
         Ke = np.zeros((8,8))        #trả về ma trận 8x8
         D = self.mat.D              #lấy E và nu từ Material
         gauss = [-1/np.sqrt(3), 1/np.sqrt(3)]   #gauss bậc 2, tứ giác 4 điểm nên dùng gauss bậc 2
-
+    
         for xi in gauss:                    #hàm dạng
             for eta in gauss:               #đạo hàm N_i theo e và n
                 dN_dxi = np.array([              #tọa độ của 4 nút
@@ -20,10 +20,8 @@ class Q4:        #hàm dạng cho phần tử tứ giác
 
                 J = dN_dxi.T @ coords       #ma trận jacobian (2x2): lấy chuyển vị (2x4) x tọa độ coords (4x2)
                 detJ = np.linalg.det(J)
-                dN_dx = dN_dxi @ np.linalg.inv(J)   #tính biến dạng bằng đạo hàm
-
-                if detJ < 0:
-                    dN_dx = -dN_dx
+                
+                dN_dx = dN_dxi @ np.linalg.inv(J).T
 
                 B = np.zeros((3,8)) #ma trận biến dạng - chuyển vị   sắp đạo hàm về đúng vị tri để nhân với vct chuyển vị
                 for i in range(4):  #0: biến dạng dọc trục X
@@ -34,7 +32,7 @@ class Q4:        #hàm dạng cho phần tử tứ giác
                     B[2,2*i]   = dN_dx[i,1]     #gamma_xy
                     B[2,2*i+1] = dN_dx[i,0]     #gamma_xy
 
-                Ke   +=   B.T @ D @ B * np.abs(np.linalg.det(J)) *1
+                Ke   +=   B.T @ D @ B * np.abs(detJ) *1
                 #[K^e]=  [B]^T [D]  [B]     det(j)       t       
         return Ke
 
