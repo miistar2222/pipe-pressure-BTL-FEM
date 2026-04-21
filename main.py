@@ -188,57 +188,57 @@ class FEMApp:
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
     
-def run_compare_analysis(self, d):
-        # --- Lấy dữ liệu T3 ---
-        mT = mesh(d['Ri'], d['Ro'], int(d['nr']), int(d['nt']), "T3")
-        solT = FEM_Solver(mT, T3(material(d['E'], d['nu'])))
-        solT.assemble(); solT.apply_force(d['Ri'], d['Ro'], d['pi'], d['po']); solT.solve()
-        _, _, urT, _ = get_displacements(mT, solT.U)
-        cart_T, polar_T = get_element_stresses(mT, T3(material(d['E'], d['nu'])), solT.U)
-        
-        # Tọa độ r cho nút (chuyển vị) và tâm phần tử (ứng suất)
-        r_nodes_T = np.hypot(mT.nodes[:, 0], mT.nodes[:, 1])
-        r_elem_T = polar_T[0]
+    def run_compare_analysis(self, d):
+            # --- Lấy dữ liệu T3 ---
+            mT = mesh(d['Ri'], d['Ro'], int(d['nr']), int(d['nt']), "T3")
+            solT = FEM_Solver(mT, T3(material(d['E'], d['nu'])))
+            solT.assemble(); solT.apply_force(d['Ri'], d['Ro'], d['pi'], d['po']); solT.solve()
+            _, _, urT, _ = get_displacements(mT, solT.U)
+            cart_T, polar_T = get_element_stresses(mT, T3(material(d['E'], d['nu'])), solT.U)
+            
+            # Tọa độ r cho nút (chuyển vị) và tâm phần tử (ứng suất)
+            r_nodes_T = np.hypot(mT.nodes[:, 0], mT.nodes[:, 1])
+            r_elem_T = polar_T[0]
 
-        # --- Lấy dữ liệu Q4 ---
-        mQ = mesh(d['Ri'], d['Ro'], int(d['nr']), int(d['nt']), "Q4")
-        solQ = FEM_Solver(mQ, Q4(material(d['E'], d['nu'])))
-        solQ.assemble(); solQ.apply_force(d['Ri'], d['Ro'], d['pi'], d['po']); solQ.solve()
-        _, _, urQ, _ = get_displacements(mQ, solQ.U)
-        cart_Q, polar_Q = get_element_stresses(mQ, Q4(material(d['E'], d['nu'])), solQ.U)
-        
-        r_nodes_Q = np.hypot(mQ.nodes[:, 0], mQ.nodes[:, 1])
-        r_elem_Q = polar_Q[0]
+            # --- Lấy dữ liệu Q4 ---
+            mQ = mesh(d['Ri'], d['Ro'], int(d['nr']), int(d['nt']), "Q4")
+            solQ = FEM_Solver(mQ, Q4(material(d['E'], d['nu'])))
+            solQ.assemble(); solQ.apply_force(d['Ri'], d['Ro'], d['pi'], d['po']); solQ.solve()
+            _, _, urQ, _ = get_displacements(mQ, solQ.U)
+            cart_Q, polar_Q = get_element_stresses(mQ, Q4(material(d['E'], d['nu'])), solQ.U)
+            
+            r_nodes_Q = np.hypot(mQ.nodes[:, 0], mQ.nodes[:, 1])
+            r_elem_Q = polar_Q[0]
 
-        # --- Giải tích ---
-        ana = Analytical(d['Ri'], d['Ro'], d['E'], d['nu'], d['pi'], d['po'])
-        r_arr = np.linspace(d['Ri'], d['Ro'], 100)
-        sr_ana, st_ana = ana.get_stresses(r_arr)
-        ur_ana = ana.get_radial_displacement(r_arr)
+            # --- Giải tích ---
+            ana = Analytical(d['Ri'], d['Ro'], d['E'], d['nu'], d['pi'], d['po'])
+            r_arr = np.linspace(d['Ri'], d['Ro'], 100)
+            sr_ana, st_ana = ana.get_stresses(r_arr)
+            ur_ana = ana.get_radial_displacement(r_arr)
 
-        # --- Đóng gói dữ liệu ---
-        res_T3 = {
-            'r': r_elem_T, 'sx': cart_T[0], 'sy': cart_T[1], 'sz': cart_T[2], 
-            'txy': cart_T[3], 'vm': cart_T[4], 'sr': polar_T[2], 'st': polar_T[3],
-            'ur': urT, 'r_u': r_nodes_T # ur vẽ theo nút
-        }
-        res_Q4 = {
-            'r': r_elem_Q, 'sx': cart_Q[0], 'sy': cart_Q[1], 'sz': cart_Q[2], 
-            'txy': cart_Q[3], 'vm': cart_Q[4], 'sr': polar_Q[2], 'st': polar_Q[3],
-            'ur': urQ, 'r_u': r_nodes_Q
-        }
-        res_Ana = {'r': r_arr, 'ur': ur_ana, 'sr': sr_ana, 'st': st_ana}
+            # --- Đóng gói dữ liệu ---
+            res_T3 = {
+                'r': r_elem_T, 'sx': cart_T[0], 'sy': cart_T[1], 'sz': cart_T[2], 
+                'txy': cart_T[3], 'vm': cart_T[4], 'sr': polar_T[2], 'st': polar_T[3],
+                'ur': urT, 'r_u': r_nodes_T # ur vẽ theo nút
+            }
+            res_Q4 = {
+                'r': r_elem_Q, 'sx': cart_Q[0], 'sy': cart_Q[1], 'sz': cart_Q[2], 
+                'txy': cart_Q[3], 'vm': cart_Q[4], 'sr': polar_Q[2], 'st': polar_Q[3],
+                'ur': urQ, 'r_u': r_nodes_Q
+            }
+            res_Ana = {'r': r_arr, 'ur': ur_ana, 'sr': sr_ana, 'st': st_ana}
 
-        # Vẽ lại (Lưu ý trong plotter cần sửa nhẹ để ur dùng 'r_u')
-        if self.canvas: self.canvas.get_tk_widget().destroy()
+            # Vẽ lại (Lưu ý trong plotter cần sửa nhẹ để ur dùng 'r_u')
+            if self.canvas: self.canvas.get_tk_widget().destroy()
+            
+            # Gọi hàm vẽ (Bạn có thể tùy biến hàm plotter để nhận các dict này)
+            fig = plotter.plot_comparison_8_plots(res_T3, res_Q4, res_Ana)
+            
+            self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+            self.canvas.draw()
+            self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
         
-        # Gọi hàm vẽ (Bạn có thể tùy biến hàm plotter để nhận các dict này)
-        fig = plotter.plot_comparison_8_plots(res_T3, res_Q4, res_Ana)
-        
-        self.canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
-    
 if __name__ == "__main__":
     root = tk.Tk()
     app = FEMApp(root)
