@@ -125,3 +125,39 @@ def plot_convergence_simple(n_list, err_Q4, err_T3):
     ax.legend()
     ax.grid(True)
     return fig
+
+def plot_comparison_8_plots(results_T3, results_Q4, results_Ana):
+    """
+    results_T3/Q4: Dictionary chứa (r, values) cho từng loại ứng suất
+    results_Ana: Dictionary chứa (r, values) giải tích
+    """
+    fig, axes = plt.subplots(4, 2, figsize=(15, 20))
+    fig.subplots_adjust(hspace=0.4, wspace=0.3)
+    axes = axes.flatten()
+
+    titles = [
+        "Chuyển vị $u_r$", "Ứng suất $\sigma_x$", 
+        "Ứng suất $\sigma_y$", "Ứng suất $\sigma_z$",
+        "Ứng suất $\\tau_{xy}$", "Ứng suất $\sigma_r$", 
+        "Ứng suất $\sigma_\\theta$", "Ứng suất Von Mises"
+    ]
+    
+    keys = ['ur', 'sx', 'sy', 'sz', 'txy', 'sr', 'st', 'vm']
+
+    for i, key in enumerate(keys):
+        ax = axes[i]
+        # Vẽ T3
+        ax.scatter(results_T3['r'], results_T3[key], color='red', s=15, label='T3', alpha=0.6)
+        # Vẽ Q4
+        ax.scatter(results_Q4['r'], results_Q4[key], color='blue', s=15, label='Q4', alpha=0.6)
+        
+        # Vẽ Giải tích (nếu có)
+        if key in results_Ana:
+            ax.plot(results_Ana['r'], results_Ana[key], 'k--', linewidth=2, label='Giải tích')
+
+        ax.set_title(titles[i])
+        ax.set_xlabel("Bán kính r")
+        ax.grid(True, linestyle=':', alpha=0.7)
+        ax.legend()
+
+    return fig
